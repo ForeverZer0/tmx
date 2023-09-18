@@ -9,10 +9,16 @@ import (
 	"strconv"
 )
 
+// Property describes an arbitrary named value associated with an object.
 type Property struct {
-	Name  string
-	Type  DataType
+	// Name is the user-defined name of the Property. Names are used as the key within
+	// the parent map, and are therefore unique within any set of Properties.
+	Name string
+	// Type describes the data type of the property Value.
+	Type DataType
+	// Class is the name of the user-defined class of the property (optional).
 	Class string
+	// Value is the untyped value of the property.
 	Value interface{}
 }
 
@@ -170,6 +176,7 @@ func (p *Property) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// jsonValue decodes a value from the current position in the stream.
 func (p Property) jsonValue(d *json.Decoder, dt DataType) (interface{}, error) {
 	if dt == TypeClass {
 		return p.jsonClass(d)
@@ -204,6 +211,16 @@ func (p Property) jsonValue(d *json.Decoder, dt DataType) (interface{}, error) {
 	}
 }
 
+// jsonClass creates a set of Properties for a custom class type.
+//
+// Unfortunately the JSON format does not indicate the data-types or class-names as
+// the XML format does, and it is given as a simple list of key-value pairs. While
+// every effort is made to set the correct type, this makes it impossible to
+// differentiate between certain values. For example, a float value may be written
+// as "0". Because there is no indicator for what type it is, it will be assumed to
+// be an integer, although that was not the .
+//
+// https://github.com/mapeditor/tiled/issues/3820
 func (p Property) jsonClass(d *json.Decoder) (Properties, error) {
 	props := make(Properties)
 

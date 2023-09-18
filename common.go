@@ -5,6 +5,12 @@ import (
 	"log"
 )
 
+// Cloner represents an object that can create a deep-clone of itself.
+type Cloner[T any] interface {
+	// Clone creates a deep clone and returns it.
+	Clone() T
+}
+
 // ErrInvalidEnum is an error used when an invalid enumeration value is given.
 type ErrInvalidEnum struct {
 	EnumType string

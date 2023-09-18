@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Properties describes a map with sting keys and Property values. Order of values is not
+// Properties describes a map with string keys and Property values. Order of values is not
 // guaranteed.
 type Properties map[string]Property
 
@@ -159,6 +159,15 @@ func (p Properties) MustFloat(name string, def float64) float64 {
 // value upon failure.
 func (p Properties) MustColor(name string, def Color) Color {
 	return mustValue(p, name, def)
+}
+
+// Clone implements the Cloner interface.
+func (p Properties) Clone() Properties {
+	dup := make(Properties, len(p))
+	for k, v := range p {
+		dup[k] = v.Clone()
+	}
+	return dup
 }
 
 // vim: ts=4

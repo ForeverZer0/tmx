@@ -279,4 +279,13 @@ func (p Property) jsonClass(d *json.Decoder) (Properties, error) {
 	return props, nil
 }
 
+// Clone implements the Cloner interface.
+func (p Property) Clone() Property {
+	dup := p
+	if class, ok := p.Value.(Properties); ok {
+		dup.Value = class.Clone()
+	}
+	return dup
+}
+
 // vim: ts=4

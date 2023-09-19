@@ -2,7 +2,7 @@ package tmx
 
 import "fmt"
 
-// Point descibes a location in 2D space.
+// Point describes a location in 2D space.
 type Point struct {
 	// X is the location on the horizontal x-axis.
 	X int `xml:"x,attr" json:"x"`
@@ -15,7 +15,7 @@ func (p Point) String() string {
 	return fmt.Sprintf("<%d, %d>", p.X, p.Y)
 }
 
-// Size decsribes dimensions in 2D space.
+// Size descibes dimensions in 2D space.
 type Size struct {
 	// Width is the dimension on the horizontal x-axis.
 	Width int `xml:"width,attr" json:"width"`

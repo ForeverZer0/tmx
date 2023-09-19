@@ -18,11 +18,6 @@ import (
 	"github.com/DataDog/zstd"
 )
 
-type Chunk struct {
-	Rect
-	Tiles []TileID
-}
-
 type Data struct {
 	Compression Compression `xml:"compression,attr"`
 	Encoding    Encoding    `xml:"encoding,attr"`
@@ -90,15 +85,16 @@ func (data *TileData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 			result := Chunk{Rect: chunk.Rect}
 			result.Tiles = make([]TileID, chunk.Width*chunk.Height)
 			if len(chunk.Tiles) > 0 {
-				// TODO: Assert len equal
 				for i, id := range chunk.Tiles {
 					result.Tiles[i] = id.Value
 				}
 			} else {
-				trimmed := trimPayload(chunk.Payload)
-				if err := data.decode(trimmed, result.Tiles); err != nil {
-					return err
-				}
+				// Store for now, process later
+				result.tileData = trimPayload(chunk.Payload)
+				// trimmed := trimPayload(chunk.Payload)
+				// if err := data.decode(trimmed, result.Tiles); err != nil {
+				// 	return err
+				// }
 			}
 			data.Chunks[i] = result
 		}

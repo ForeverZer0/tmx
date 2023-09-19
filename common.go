@@ -5,9 +5,9 @@ import (
 	"log"
 )
 
-// Cloner represents an object that can create a deep-clone of itself.
+// Cloner represents a type that can create a deep-clone.
 type Cloner[T any] interface {
-	// Clone creates a deep clone and returns it.
+	// Clone creates a deep-clone and returns it.
 	Clone() T
 }
 

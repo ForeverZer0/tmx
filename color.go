@@ -34,7 +34,7 @@ func (c Color) String() string {
 	return fmt.Sprintf("#%02x%02x%02x%02x", c.A(), c.R(), c.G(), c.B())
 }
 
-// NewRGB creates a fully opaque new color from the specified values.
+// NewRGB creates a new fully opaque color from the specified values.
 func NewRGB(r, g, b uint8) Color {
 	return 0xFF000000 | (Color(b) << 16) | (Color(g) << 8) | Color(r)
 }

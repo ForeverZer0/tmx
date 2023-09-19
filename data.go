@@ -18,20 +18,33 @@ import (
 	"github.com/DataDog/zstd"
 )
 
+// Data is a container for arbitrary data that can be stored in a TMX document.
 type Data struct {
+	// Compression is the compression algorithm used to deflate the payload during serialization.
 	Compression Compression `xml:"compression,attr"`
-	Encoding    Encoding    `xml:"encoding,attr"`
-	Payload     []byte      `xml:",chardata"`
+	// Encoding is the encoding used to encode the payload during serialization.
+	Encoding Encoding `xml:"encoding,attr"`
+	// Payload is a buffer containing the data. It will be stripped of leading/trailing
+	// whitespace when present, decoded from Base64, but will not be decompressed.
+	Payload []byte `xml:",chardata"`
 }
 
+// TileData contains tile data defining tile layers.
 type TileData struct {
+	// Compression is the compression algorithm used to deflate the payload during serialization.
 	Compression Compression
-	Encoding    Encoding
-	Chunks      []Chunk
-	Tiles       []TileID
-	tileData    []byte
+	// Encoding is the encoding used to encode the payload during serialization.
+	Encoding Encoding
+	// Chunks contains the the chunk data for infinite maps, otherwise empty.
+	Chunks []Chunk
+	// Tiles contains the tile definitions, or empty for infinite maps.
+	Tiles []TileID
+	// tileData contains the raw data from the XML/JSON. After the document is read without
+	// error, it is processed and then discarded.
+	tileData []byte
 }
 
+// UnmarshalXML implements the xml.Unmarshaler interface.
 func (data *Data) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	// Must use an alias type to avoid infinite recursion.
 	type dataAlias Data
@@ -54,6 +67,7 @@ func (data *Data) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	return nil
 }
 
+// UnmarshalXML implements the xml.Unmarshaler interface.
 func (data *TileData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	type xmlTileData struct {
 		Compression Compression `xml:"compression,attr"`

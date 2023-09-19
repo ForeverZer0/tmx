@@ -170,4 +170,21 @@ func (p Properties) Clone() Properties {
 	return dup
 }
 
+// Merge combines the values of another Properties, preserving existing values in the case
+// of conflicting keys.
+func (p Properties) Merge(other Properties) {
+	for k, v := range other {
+		if _, ok := p[k]; ok {
+			continue
+		}
+		if class, ok := v.Value.(Properties); ok {
+			prop := v
+			prop.Value = class.Clone()
+			p[k] = prop
+		} else {
+			p[k] = v
+		}
+	}
+}
+
 // vim: ts=4

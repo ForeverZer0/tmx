@@ -71,7 +71,7 @@ func (img *Image) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 			} else {
 				img.Size.Height = int(value)
 			}
-		case "id": // Ignore
+		case "id": // Ignore, deprecated legacy Java filth
 		default:
 			logAttr(attr.Name.Local, start.Name.Local)
 		}

@@ -5,8 +5,6 @@ import (
 	"strconv"
 )
 
-
-
 // Layer describes a map layer of any type, providing doubly linked-list functionality for
 // iteration. The concrete type of the interface will be one of the following:
 //
@@ -71,7 +69,7 @@ type jsonLayer struct {
 	// Group only
 	Layers []jsonLayer `json:"layers"`
 
-	// Objectgroup
+	// ObjectGroup
 	Objects   []Object  `json:"objects"`
 	DrawOrder DrawOrder `json:"draworder"`
 }

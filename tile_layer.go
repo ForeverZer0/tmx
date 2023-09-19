@@ -17,31 +17,31 @@ func (layer *TileLayer) UnmarshalXML(d *xml.Decoder, start xml.StartElement) err
 		} else if handled {
 			continue
 		}
-
-		token, err := d.Token()
-		for token != start.End() {
-			if err != nil {
-				return err
-			}
-
-			if child, ok := token.(xml.StartElement); ok {
-				if handled, err := layer.baseLayer.xmlProp(d, child); err != nil {
-					return err
-				} else if !handled {
-					switch child.Name.Local {
-					case "data":
-						if err := d.DecodeElement(&layer.TileData, &start); err != nil {
-							return err
-						}
-					default:
-						logElem(child.Name.Local, start.Name.Local)
-					}
-				}
-			}
-			token, err = d.Token()
-		}
+		logAttr(attr.Name.Local, start.Name.Local)
 	}
 
+	token, err := d.Token()
+	for token != start.End() {
+		if err != nil {
+			return err
+		}
+
+		if child, ok := token.(xml.StartElement); ok {
+			if handled, err := layer.baseLayer.xmlProp(d, child); err != nil {
+				return err
+			} else if !handled {
+				switch child.Name.Local {
+				case "data":
+					if err := d.DecodeElement(&layer.TileData, &start); err != nil {
+						return err
+					}
+				default:
+					logElem(child.Name.Local, start.Name.Local)
+				}
+			}
+		}
+		token, err = d.Token()
+	}
 	return layer.processTiles()
 }
 

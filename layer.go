@@ -1,6 +1,7 @@
 package tmx
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"strconv"
 )
@@ -72,6 +73,100 @@ type jsonLayer struct {
 	// ObjectGroup
 	Objects   []Object  `json:"objects"`
 	DrawOrder DrawOrder `json:"draworder"`
+}
+
+func (l *jsonLayer) UnmarshalJSON(data []byte) error {
+
+	type alias jsonLayer
+	var temp alias
+	temp.Properties = make(Properties)
+	temp.Visible = true
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+	*l = jsonLayer(temp)
+	return nil
+}
+
+func (j *jsonLayer) toLayer() Layer {
+
+	// TODO: StartX, StartY? The are documented, but no setting in Tiled uses them, nor are they
+	// ever actually present(?) 
+
+	var base *baseLayer
+	var layer Layer
+
+	switch j.Type {
+	case LayerTile:
+		var impl TileLayer
+		base = &impl.baseLayer
+		layer = &impl
+		impl.Compression = j.Compression
+		impl.Encoding = j.Encoding
+		impl.Chunks = j.Chunks
+
+		
+		// TODO: j.Data (string or array of gids)
+/*
+type TileData struct {
+	// Compression is the compression algorithm used to deflate the payload during serialization.
+	Compression Compression
+	// Encoding is the encoding used to encode the payload during serialization.
+	Encoding Encoding
+	// Chunks contains the the chunk data for infinite maps, otherwise empty.
+	Chunks []Chunk
+	// Tiles contains the tile definitions, or empty for infinite maps.
+	Tiles []TileID
+	// tileData contains the raw data from the XML/JSON. After the document is read without
+	// error, it is processed and then discarded.
+	tileData []byte
+}
+*/
+
+
+	case LayerImage:
+		var impl ImageLayer
+		layer = &impl
+		base = &impl.baseLayer
+		impl.Image = &Image{
+			Source: j.Image,
+			Transparency: j.TransparentColor,
+		}
+		impl.RepeatX = j.RepeatX
+		impl.RepeatY = j.RepeatY
+	case LayerObject:
+		var impl ObjectLayer
+		layer = &impl
+		base = &impl.baseLayer
+		impl.Objects = j.Objects
+		impl.DrawOrder = j.DrawOrder
+	case LayerGroup:
+		var impl GroupLayer
+		layer = &impl
+		base = &impl.baseLayer
+		for i := range j.Layers {
+			child := j.Layers[i].toLayer()
+			impl.AddLayer(child)
+		}	
+	}
+
+	base.ID = j.ID
+	base.Name = j.Name
+	base.Class = j.Class
+	base.layerType = j.Type // TODO: Must set in XML 
+	base.Offset = Vec2{X: j.OffsetX, Y: j.OffsetY}
+	base.Parallax = Vec2{X: j.ParallaxX, Y: j.ParallaxY}
+	base.Opacity = j.Opacity
+	base.Visible = j.Visible
+	base.TintColor = j.TintColor
+	base.Properties = j.Properties
+	base.Rect = Rect{
+		Point{X: j.X, Y: j.Y},
+		Size{Width: j.Width, Height: j.Width}, 
+	}
+	
+	return layer
 }
 
 type baseLayer struct {

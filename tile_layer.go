@@ -10,6 +10,8 @@ type TileLayer struct {
 
 // UnmarshalXML implements the xml.Unmarshaler interface.
 func (layer *TileLayer) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	layer.initDefaults(LayerTile)
+
 	for _, attr := range start.Attr {
 		if handled, err := layer.baseLayer.xmlAttr(attr); err != nil {
 			return err

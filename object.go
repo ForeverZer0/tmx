@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -190,7 +189,7 @@ func (obj *Object) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if token != json.Delim('{') {
-		return errors.New("expected JSON object")
+		return ErrExpectedObject
 	}
 
 	for {

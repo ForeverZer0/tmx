@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
-	"errors"
 	"strconv"
 )
 
@@ -38,21 +37,15 @@ type Layer interface {
 // structure of the JSON/XML are significantly different, hence it is much easier to just
 // use a dedicated struct for it and let Go handle the marshal logic.
 type jsonLayer struct {
+	Rect
 	ID         int        `json:"id"`
 	Name       string     `json:"name"`
 	Class      string     `json:"class"`
 	Type       LayerType  `json:"type"`
-	X          int        `json:"x"`
-	Y          int        `json:"y"`
-	Width      int        `json:"width"`
-	Height     int        `json:"height"`
-	OffsetX    float32    `json:"offsetx"`
-	OffsetY    float32    `json:"offsety"`
-	ParallaxX  float32    `json:"parallaxx"`
-	ParallaxY  float32    `json:"parallaxy"`
+	Offset    Vec2    `json:"offsetx"`
+	Parallax  Vec2    `json:"parallaxy"`
 	Opacity    float32    `json:"opacity"`
-	StartX     int        `json:"startx"`
-	StartY     int        `json:"starty"`
+	Start     Point        `json:"startx"`
 	TintColor  Color      `json:"tintcolor"`
 	Visible    bool       `json:"visible"`
 	Properties Properties `json:"properties"`
@@ -82,12 +75,15 @@ type jsonLayer struct {
 }
 
 func (l *jsonLayer) UnmarshalJSON(data []byte) error {
+	l.Opacity = 1.0
+	l.Visible = true
+	
 	d := json.NewDecoder(bytes.NewReader(data))
 	token, err := d.Token()
 	if err != nil {
 		return err
 	} else if token != json.Delim('{') {
-		return errors.New("expected JSON object")
+		return ErrExpectedObject
 	}
 	
 	for {
@@ -149,25 +145,25 @@ func (l *jsonLayer) UnmarshalJSON(data []byte) error {
 			if value, err := jsonProp[float64](d); err != nil {
 				return err
 			} else {
-				l.OffsetX = float32(value)
+				l.Offset.X = float32(value)
 			}
 		case "offsety":
 			if value, err := jsonProp[float64](d); err != nil {
 				return err
 			} else {
-				l.OffsetY = float32(value)
+				l.Offset.Y = float32(value)
 			}
 		case "parallaxx":
 			if value, err := jsonProp[float64](d); err != nil {
 				return err
 			} else {
-				l.ParallaxX = float32(value)
+				l.Parallax.X = float32(value)
 			}
 		case "parallaxy":
 			if value, err := jsonProp[float64](d); err != nil {
 				return err
 			} else {
-				l.ParallaxY = float32(value)
+				l.Parallax.Y = float32(value)
 			}
 		case "opacity":
 			if value, err := jsonProp[float64](d); err != nil {
@@ -179,13 +175,13 @@ func (l *jsonLayer) UnmarshalJSON(data []byte) error {
 			if value, err := jsonProp[float64](d); err != nil {
 				return err
 			} else {
-				l.StartX = int(value)
+				l.Start.X = int(value)
 			}
 		case "starty":
 			if value, err := jsonProp[float64](d); err != nil {
 				return err
 			} else {
-				l.StartY = int(value)
+				l.Start.Y = int(value)
 			}
 		case "tintcolor":
 			if value, err := jsonProp[string](d); err != nil {
@@ -259,7 +255,7 @@ func (l *jsonLayer) UnmarshalJSON(data []byte) error {
 			if token, err = d.Token(); err != nil {
 				return err
 			} else if token != json.Delim('[') {
-				return errors.New("expected JSON array")
+				return ErrExpectedArray
 			}
 			for d.More() {
 				var obj Object
@@ -277,7 +273,7 @@ func (l *jsonLayer) UnmarshalJSON(data []byte) error {
 			if token, err = d.Token(); err != nil {
 				return err
 			} else if token != json.Delim('[') {
-				return errors.New("expected JSON array")
+				return ErrExpectedArray
 			}
 			for d.More() {
 				var child jsonLayer
@@ -295,7 +291,7 @@ func (l *jsonLayer) UnmarshalJSON(data []byte) error {
 			if token, err = d.Token(); err != nil {
 				return err
 			} else if token != json.Delim('[') {
-				return errors.New("expected JSON array")
+				return ErrExpectedArray
 			}
 			for d.More() {
 				var chunk Chunk
@@ -351,10 +347,9 @@ func (j *jsonLayer) toLayer() Layer {
 
 	switch j.Type {
 	case LayerTile:
-		var impl TileLayer
+		impl := TileLayer{TileData: j.Data}
 		base = &impl.baseLayer
 		layer = &impl
-		impl.TileData = j.Data
 	case LayerImage:
 		var impl ImageLayer
 		layer = &impl
@@ -384,18 +379,15 @@ func (j *jsonLayer) toLayer() Layer {
 	base.ID = j.ID
 	base.Name = j.Name
 	base.Class = j.Class
-	base.layerType = j.Type // TODO: Must set in XML 
-	base.Offset = Vec2{X: j.OffsetX, Y: j.OffsetY}
-	base.Parallax = Vec2{X: j.ParallaxX, Y: j.ParallaxY}
+	base.layerType = j.Type 
+	base.Offset = j.Offset
+	base.Parallax = j.Parallax
 	base.Opacity = j.Opacity
 	base.Visible = j.Visible
 	base.TintColor = j.TintColor
 	base.Properties = j.Properties
-	base.Rect = Rect{
-		Point{X: j.X, Y: j.Y},
-		Size{Width: j.Width, Height: j.Width}, 
-	}
-	
+	base.Rect = j.Rect
+
 	return layer
 }
 
@@ -586,6 +578,13 @@ func (layer *baseLayer) setParent(parent *Map) {
 // setContainer implements the Layer interface.
 func (layer *baseLayer) setContainer(container Container) {
 	layer.container = container
+}
+
+// initDefaults initializes default values of a layer.
+func (layer *baseLayer) initDefaults(lt LayerType) {
+	layer.layerType = lt
+	layer.Opacity = 1.0
+	layer.Visible = true
 }
 
 // vim: ts=4

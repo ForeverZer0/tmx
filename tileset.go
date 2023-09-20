@@ -72,13 +72,12 @@ type Tileset struct {
 	// Tiled editor. Defaults to full transparency, and is typically of little relevance in
 	// regards to tilemap rendering.
 	BackgroundColor Color
-
+	// cache is a resource cache that maintains references to shared objects.
 	cache *Cache
 }
 
 // UnmarshalXML implements the xml.Unmarshaler interface.
 func (ts *Tileset) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	
 	for _, attr := range start.Attr {
 		switch attr.Name.Local {
 		case "version":
@@ -171,6 +170,7 @@ func (ts *Tileset) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 			switch child.Name.Local {
 			case "tile":
 				var tile Tile
+				tile.cache = ts.cache
 				if err := tile.UnmarshalXML(d, child); err != nil {
 					return err
 				}
@@ -224,7 +224,7 @@ func (ts *Tileset) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 
 	// TODO
 	for i, tile := range ts.Tiles {
-		
+
 		if tile.Width == 0 {
 			ts.Tiles[i].Width = ts.TileSize.Width
 		}
@@ -250,13 +250,12 @@ type MapTileset struct {
 	// Tileset is the actual tileset implementation, and is unbound by the map-specific fields,
 	// allowing it to be cached and reused with different maps.
 	*Tileset
-
+	// cache is a resource cache that maintains references to shared objects.
 	cache *Cache
 }
 
 // UnmarshalXML implements the xml.Unmarshaler interface.
 func (ts *MapTileset) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	
 	var source string
 	for _, attr := range start.Attr {
 		switch attr.Name.Local {
@@ -293,12 +292,13 @@ func (ts *MapTileset) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 	return nil
 }
 
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (ts *MapTileset) UnmarshalJSON(data []byte) error {
 	type mapTileset struct {
-		FirstGID         TileID           `json:"firstgid"`
-		Source           string           `json:"source"`
+		FirstGID TileID `json:"firstgid"`
+		Source   string `json:"source"`
 	}
-	
+
 	var temp mapTileset
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
@@ -309,7 +309,7 @@ func (ts *MapTileset) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &tileset); err != nil {
 			return err
 		}
-		ts.Tileset = &tileset	
+		ts.Tileset = &tileset
 	} else {
 		if tileset, err := OpenTileset(temp.Source, ts.cache); err != nil {
 			return err
@@ -322,6 +322,7 @@ func (ts *MapTileset) UnmarshalJSON(data []byte) error {
 }
 
 func (ts *Tileset) UnmarshalJSON(data []byte) error {
+	// TODO
 	type jsonTileset struct {
 		FirstGID         TileID           `json:"firstgid"`
 		Source           string           `json:"source"`
@@ -381,24 +382,23 @@ func (ts *Tileset) UnmarshalJSON(data []byte) error {
 	if temp.Source != "" {
 		ts.Image = &Image{
 			Source: temp.Source,
-			Size: Size{Width: temp.ImageWidth,
-			Height: temp.ImageHeight},
+			Size: Size{
+				Width:  temp.ImageWidth,
+				Height: temp.ImageHeight,
+			},
 			Transparency: temp.TransparentColor,
 		}
 	}
 
-		// Terrains         []int            `json:"terrains"`
+	// Terrains         []int            `json:"terrains"`
 
 	return nil
 }
 
-
-
-
 // OpenMap reads a tilemap from a file, automatically detecting it format.
 //
 // An optional cache can be supplied that maintains references to tilesets and
-// templates to prevent frequent re-processing of them. 
+// templates to prevent frequent re-processing of them.
 func OpenTileset(path string, cache *Cache) (*Tileset, error) {
 	return OpenTilesetFormat(path, detectFileExt(path), cache)
 }
@@ -406,14 +406,14 @@ func OpenTileset(path string, cache *Cache) (*Tileset, error) {
 // OpenMapFormat reads a tilemap from a file, using the specified format.
 //
 // An optional cache can be supplied that maintains references to tilesets and
-// templates to prevent frequent re-processing of them. 
+// templates to prevent frequent re-processing of them.
 func OpenTilesetFormat(path string, format Format, cache *Cache) (*Tileset, error) {
 	var abs string
 	var err error
 	if abs, err = FindPath(path); err != nil {
 		return nil, err
-	} 
-	
+	}
+
 	// Check cache
 	if cache != nil {
 		if tileset, ok := cache.Tileset(abs); ok {
@@ -429,7 +429,7 @@ func OpenTilesetFormat(path string, format Format, cache *Cache) (*Tileset, erro
 
 	IncludePaths = append(IncludePaths, filepath.Dir(abs))
 	defer func() { IncludePaths = IncludePaths[:len(IncludePaths)-1] }()
-	
+
 	var tileset Tileset
 	tileset.Source = abs
 	// tileset.cache = cache
@@ -437,7 +437,7 @@ func OpenTilesetFormat(path string, format Format, cache *Cache) (*Tileset, erro
 	if err := ReadTilesetFormat(reader, format, &tileset); err != nil {
 		return nil, err
 	}
-	
+
 	if cache != nil {
 		cache.AddTileset(abs, &tileset)
 	}
@@ -445,7 +445,7 @@ func OpenTilesetFormat(path string, format Format, cache *Cache) (*Tileset, erro
 }
 
 // ReadMap reads a tilemap from the current position in the reader.
-func ReadTileset(r io.ReadSeeker, tileset *Tileset) (error) {
+func ReadTileset(r io.ReadSeeker, tileset *Tileset) error {
 	return ReadTilesetFormat(r, detectReader(r), tileset)
 }
 
@@ -470,6 +470,4 @@ func ReadTilesetFormat(r io.Reader, format Format, tileset *Tileset) error {
 	return nil
 }
 
-
 // vim: ts=4
-

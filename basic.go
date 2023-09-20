@@ -28,12 +28,57 @@ func (s Size) String() string {
 	return fmt.Sprintf("<%d, %d>", s.Width, s.Height)
 }
 
+// Area returns the total spacial area.
+func (s Size) Area() int {
+	return s.Width * s.Height
+}
+
 // Rect describes a location and size in 2D space.
 type Rect struct {
 	// Point is the location of the rectangle.
 	Point
 	// Size is the dimensions of the rectangle.
 	Size
+}
+
+// Left returns the left edge of the rectangle.
+func (r Rect) Left() int {
+	return r.X
+}
+
+// Left returns the right edge of the rectangle.
+func (r Rect) Right() int {
+	return r.X + r.Width
+}
+
+// Left returns the top edge of the rectangle.
+func (r Rect) Top() int {
+	return r.Y
+}
+
+// Left returns the bottom edge of the rectangle.
+func (r Rect) Bottom() int {
+	return r.Y + r.Height
+}
+
+// TopLeft returns the point at the top-left corner of the rectangle.
+func (r Rect) TopLeft() Point {
+	return Point{X: r.X, Y: r.Y}
+}
+
+// TopRight returns the point at the top-right corner of the rectangle.
+func (r Rect) TopRight() Point {
+	return Point{X: r.X + r.Width, Y: r.Y}
+}
+
+// BottomLeft returns the point at the bottom-left corner of the rectangle.
+func (r Rect) BottomLeft() Point {
+	return Point{X: r.X, Y: r.Y + r.Height}
+}
+
+// BottomRight returns the point at the bottom-right corner of the rectangle.
+func (r Rect) BottomRight() Point {
+	return Point{X: r.X + r.Width, Y: r.Y + r.Height}
 }
 
 // String implements the Stringer interface.

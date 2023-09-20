@@ -1,27 +1,16 @@
 package tmx
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 )
 
-type ErrFormat struct{
+// ErrFormat is an error type used for format-related errors.
+type ErrFormat struct {
+	// Message describes the cause of the error.
 	Message string
 }
-
-func (e *ErrFormat) Error() string {
-	if e.Message != "" {
-		return fmt.Sprintf("format error: %s", e.Message)
-	}
-	return "forrmat error"
-}
-
-func errFormat(message string) error {
-	return &ErrFormat{Message: message}
-}
-
-var ErrExpectedObject error = errFormat("expected JSON object")
-var ErrExpectedArray error = errFormat("expected JSON array")
 
 // Cloner represents a type that can create a deep-clone.
 type Cloner[T any] interface {
@@ -33,6 +22,23 @@ type Cloner[T any] interface {
 type ErrInvalidEnum struct {
 	EnumType string
 	Value    string
+}
+
+var (
+	ErrExpectedObject error = errFormat("expected JSON object")
+	ErrExpectedArray  error = errFormat("expected JSON array")
+)
+
+// Error implements the error interface.
+func (e *ErrFormat) Error() string {
+	if e.Message != "" {
+		return fmt.Sprintf("format error: %s", e.Message)
+	}
+	return "forrmat error"
+}
+
+func errFormat(format string, args ...any) error {
+	return &ErrFormat{Message: fmt.Sprintf(format, args...)}
 }
 
 // Error implements the error interface.
@@ -58,6 +64,48 @@ func logAttr(name, parent string) {
 // logProp is used to log an unhandled/unrecognized property in TMJ document.
 func logProp(name, parent string) {
 	log.Printf(`skipped unrecognized child property in "%s" in "%s"`, name, parent)
+}
+
+// jsonProp reads JSON value of the given type.
+func jsonProp[T any](d *json.Decoder) (value T, err error) {
+	var token json.Token
+	token, err = d.Token()
+	if err != nil {
+		return
+	}
+
+	var ok bool
+	if value, ok = token.(T); !ok {
+		err = errFormat("expected type of %T", value)
+	}
+	return
+}
+
+// jsonSkip consumes the current JSON value without processing.
+func jsonSkip(d *json.Decoder) error {
+	var d1, d2 int
+
+	for {
+		token, err := d.Token()
+		if err != nil {
+			return err
+		}
+		switch token {
+		case json.Delim('}'):
+			d1--
+		case json.Delim(']'):
+			d2--
+		case json.Delim('{'):
+			d1++
+		case json.Delim('['):
+			d2++
+		}
+		if d1 == 0 && d2 == 0 {
+			break
+		}
+	}
+
+	return nil
 }
 
 // vim: ts=4

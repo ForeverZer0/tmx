@@ -100,7 +100,7 @@ func (w *WangSet) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	} else if token != json.Delim('{') {
-		return errors.New("expected JSON object")
+		return ErrExpectedObject
 	}
 
 	for {
@@ -236,7 +236,7 @@ func (w *WangColor) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	} else if token != json.Delim('{') {
-		return errors.New("expected JSON object")
+		return ErrExpectedObject
 	}
 
 	for {

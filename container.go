@@ -54,29 +54,28 @@ func (c *container) Len() int {
 }
 
 // AddLayer appends a new layer to the container.
-func (g *container) AddLayer(layer Layer) {
+func (c *container) AddLayer(layer Layer) {
 	switch v := layer.(type) {
 	case *TileLayer:
-		g.TileLayers = append(g.TileLayers, v)
+		c.TileLayers = append(c.TileLayers, v)
 	case *ImageLayer:
-		g.ImageLayers = append(g.ImageLayers, v)
+		c.ImageLayers = append(c.ImageLayers, v)
 	case *ObjectLayer:
-		g.ObjectLayers = append(g.ObjectLayers, v)
+		c.ObjectLayers = append(c.ObjectLayers, v)
 	case *GroupLayer:
-		g.GroupLayers = append(g.GroupLayers, v)
+		c.GroupLayers = append(c.GroupLayers, v)
 	}
 
-	if g.head == nil {
-		g.head = layer
+	if c.head == nil {
+		c.head = layer
 	}
 
-	if g.tail != nil {
-		g.tail.setNext(layer)
-		layer.setPrev(g.tail)
+	if c.tail != nil {
+		c.tail.setNext(layer)
+		layer.setPrev(c.tail)
 	}
-	g.tail = layer
-	g.head.setParent(g.parent)
-	g.head.setContainer(g)
+	c.tail = layer
+	c.head.setContainer(c)
 }
 
 // vim: ts=4

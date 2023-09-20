@@ -18,8 +18,7 @@ type ObjectLayer struct {
 
 // UnmarshalXML implements the xml.Unmarshaler interface.
 func (layer *ObjectLayer) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	layer.Visible = true
-	layer.Opacity = 1.0
+	layer.initDefaults(LayerImage)
 
 	for _, attr := range start.Attr {
 		if handled, err := layer.xmlAttr(attr); err != nil {

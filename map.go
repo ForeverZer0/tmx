@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -247,53 +246,14 @@ func (m *Map) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 
 	return nil
 }
-
-func jsonProp[T any](d *json.Decoder) (value T, err error) {
-	var token json.Token
-	token, err = d.Token()
-	if err != nil {
-		return
-	}
-
-	var ok bool
-	if value, ok = token.(T); !ok {
-		err = errors.New("TODO: Fill this out")
-	}
-	return
-}
-
-func jsonSkip(d *json.Decoder) error {
-	var d1, d2 int
-
-	for {
-		token, err := d.Token()
-		if err != nil {
-			return err
-		}
-		switch token {
-		case json.Delim('}'):
-			d1--
-		case json.Delim(']'):
-			d2--
-		case json.Delim('{'):
-			d1++
-		case json.Delim('['):
-			d2++
-		}
-		if d1 == 0 && d2 == 0 {
-			break
-		}
-	}
-
-	return nil
-}
-
+ 
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (m *Map) UnmarshalJSON(data []byte) error {
 	m.initDefault()
 	d := json.NewDecoder(bytes.NewReader(data))
 	token, err := d.Token()
 	if token != json.Delim('{') {
-		return errors.New("expected JSON object")
+		return ErrExpectedObject
 	}
 
 	for {
@@ -425,7 +385,7 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 			if token, err = d.Token(); err != nil {
 				return err
 			} else if token != json.Delim('[') {
-				return errors.New("expected JSON array")
+				return ErrExpectedArray
 			}
 			for d.More() {
 				var layer jsonLayer
@@ -442,7 +402,7 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 			if token, err = d.Token(); err != nil {
 				return err
 			} else if token != json.Delim('[') {
-				return errors.New("expected JSON array")
+				return ErrExpectedArray
 			}
 			for d.More() {
 				var tileset MapTileset

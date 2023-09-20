@@ -119,7 +119,7 @@ func (p *Property) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	} else if token != json.Delim('{') {
-		return errors.New("expected JSON object")
+		return ErrExpectedObject
 	}
 
 	for {
@@ -129,40 +129,23 @@ func (p *Property) UnmarshalJSON(data []byte) error {
 			break
 		}
 
-		name, ok := token.(string)
-		if !ok {
-			continue
-		}
-
-		// Depending on value type, we don't always want to consume the token yet
-		if name != "value" {
-			if token, err = d.Token(); err != nil {
-				return err
-			}
-		}
-
+		name := token.(string)
 		switch name {
 		case "name":
-			if value, ok := token.(string); ok {
-				p.Name = value
-			} else {
-				// TODO
+			if p.Name, err = jsonProp[string](d); err != nil {
+				return err
 			}
 		case "type":
-			if value, ok := token.(string); ok {
-				if t, err := parseDataType(value); err != nil {
-					return err
-				} else {
-					p.Type = t
-				}
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if value, err := parseDataType(str); err != nil {
+				return err
 			} else {
-				// TODO
+				p.Type = value
 			}
 		case "propertytype":
-			if value, ok := token.(string); ok {
-				p.Class = value
-			} else {
-				// TODO
+			if p.Class, err = jsonProp[string](d); err != nil {
+				return err
 			}
 		case "value":
 			if value, err := p.jsonValue(d, p.Type); err != nil {
@@ -227,7 +210,7 @@ func (p Property) jsonClass(d *json.Decoder) (Properties, error) {
 	if token, err := d.Token(); err != nil {
 		return nil, err
 	} else if token != json.Delim('{') {
-		return nil, errors.New("expected JSON object")
+		return nil, ErrExpectedObject
 	}
 
 	for {

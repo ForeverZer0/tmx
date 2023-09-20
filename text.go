@@ -4,25 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
-	"errors"
 	"strconv"
 )
 
-type FontStyle uint8
-
-const (
-	// StyleBold indicates bold font style.
-	StyleBold FontStyle = 1 << iota
-	// StyleItalic indicates italic font style.
-	StyleItalic
-	// StyleUnderline indicates underline font style.
-	StyleUnderline
-	// StyleStrikeout indicates strikeout font style.
-	StyleStrikeout
-	// StyleKerning indicates if kerning should be used when rendering the text.
-	StyleKerning
-)
-
+// Text describes a map object that displays text.
 type Text struct {
 	// FontFamily is the font family used to render text. Defaults to "sans-serif".
 	FontFamily string
@@ -194,7 +179,7 @@ func (obj *Text) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if token != json.Delim('{') {
-		return errors.New("expected JSON object")
+		return ErrExpectedObject
 	}
 
 	for {

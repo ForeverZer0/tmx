@@ -18,6 +18,8 @@ type ImageLayer struct {
 
 // UnmarshalXML implements the xml.Unmarshaler interface.
 func (layer *ImageLayer) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	layer.initDefaults(LayerImage)
+
 	for _, attr := range start.Attr {
 		if handled, err := layer.baseLayer.xmlAttr(attr); err != nil {
 			return err

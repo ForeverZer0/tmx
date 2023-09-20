@@ -105,10 +105,6 @@ func (data *TileData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 			} else {
 				// Store for now, process later
 				result.tileData = trimPayload(chunk.Payload)
-				// trimmed := trimPayload(chunk.Payload)
-				// if err := data.decode(trimmed, result.Tiles); err != nil {
-				// 	return err
-				// }
 			}
 			data.Chunks[i] = result
 		}

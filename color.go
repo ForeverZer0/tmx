@@ -66,7 +66,7 @@ func ParseColor(str string) (color Color, err error) {
 }
 
 // Implements the encoding.TextMarshaler interface.
-func (c Color) MarshalText() (text []byte, err error) {
+func (c Color) MarshalText() ([]byte, error) {
 	return []byte(c.String()), nil
 }
 

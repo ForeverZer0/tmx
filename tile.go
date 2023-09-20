@@ -27,6 +27,8 @@ type Tile struct {
 	// Collision contains the map objects that define collision information for the tile, or nil
 	// when none is defined.
 	Collision *Collision
+	// cache is a resource cache that maintains references to shared objects.
+	cache *Cache
 }
 
 // UnmarshalXML implements the xml.Unmarshaler interface.
@@ -99,6 +101,7 @@ func (t *Tile) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				t.Image = &image
 			case "objectgroup":
 				var collision Collision
+				collision.cache = t.cache
 				if err := collision.UnmarshalXML(d, child); err != nil {
 					return err
 				}
@@ -120,7 +123,6 @@ func (t *Tile) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (t *Tile) UnmarshalJSON(data []byte) error {
-
 	type jsonTile struct {
 		ID          TileID     `json:"id"`
 		Class       string     `json:"type"`
@@ -137,7 +139,7 @@ func (t *Tile) UnmarshalJSON(data []byte) error {
 		Properties  Properties `json:"properties"`
 		// Terrain     []int      `json:"terrain"`
 	}
-	
+
 	var temp jsonTile
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
@@ -151,7 +153,7 @@ func (t *Tile) UnmarshalJSON(data []byte) error {
 	t.Probability = temp.Probability
 	t.Collision = temp.Collision
 	t.Properties = temp.Properties
-	
+
 	// TODO: Terrain
 
 	return nil

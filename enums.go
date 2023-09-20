@@ -2,7 +2,7 @@ package tmx
 
 import "fmt"
 
-type(
+type (
 	// Align is a set of bitflags that describe the relational alignment of an object.
 	Align uint8
 	// Compression provides strongly-typed constants describing compression methods.
@@ -13,26 +13,28 @@ type(
 	FillMode int
 	// LayerType provides strongly-typed constants describing the type of a layer.
 	LayerType byte
-
 	// ObjectType provides strongly-typed constants describing types of map objects.
 	ObjectType int
+	// Orientation describes methods the method/perspective a map is rendered.
 	Orientation int
-	TileRender int
-// WangType describes the behavior of terrain generation.
-WangType int
-// DataType describes the value type of a Property.
-DataType int
-DrawOrder int
-RenderOrder  int
+	TileRender  int
+	// WangType describes the behavior of terrain generation.
+	WangType int
+	// DataType describes the value type of a Property.
+	DataType    int
+	DrawOrder   int
+	RenderOrder int
 
-StaggerAxis  int
-StaggerIndex int
-
-// Format describes the format of a TMX document.
-Format int
-// setFlags are used internally for objects to track which fields were explicity
-// to determine how a template is inherited.
-setFlags uint32
+	StaggerAxis  int
+	StaggerIndex int
+	// Format describes the format of a TMX document.
+	Format int
+	// setFlags are used internally for objects to track which fields were explicity
+	// to determine how a template is inherited.
+	setFlags uint32
+	// FontStyle provides strongly-typed constants for describing styles of a rendered
+	// font, implemented as a set of bit flags.
+	FontStyle uint8
 )
 
 const (
@@ -66,7 +68,6 @@ const (
 	CompressionZstd
 )
 
-
 const (
 	// EncodingNone indicates unencoded text.
 	EncodingNone Encoding = iota
@@ -76,14 +77,12 @@ const (
 	EncodingBase64
 )
 
-
 const (
 	// FillStretch is a FillMode of type Stretch.
 	FillStretch FillMode = iota
 	// FillPreserveAspect is a FillMode of type Preserve-Aspect-Fit.
 	FillPreserveAspect
 )
-
 
 const (
 	// LayerNone is a LayerType of type None.
@@ -99,7 +98,6 @@ const (
 	// LayerAll is a LayerType of type All.
 	LayerAll LayerType = 0xFF
 )
-
 
 const (
 	// ObjectNone describes a standard object with no specialized type (e.g. a rectangle).
@@ -132,15 +130,12 @@ const (
 	Hexagonal
 )
 
-
 const (
 	// RenderTile is a TileRender of type Tile.
 	RenderTile TileRender = iota
 	// RenderGrid is a TileRender of type Grid.
 	RenderGrid
 )
-
-
 
 const (
 	// WangTypeCorner is a WangType of type Corner.
@@ -173,14 +168,12 @@ const (
 	TypeClass
 )
 
-
 const (
 	// DrawTopDown is a DrawOrder of type Topdown.
 	DrawTopDown DrawOrder = iota
 	// DrawIndex is a DrawOrder of type Index.
 	DrawIndex
 )
-
 
 const (
 	// RenderRightDown is a RenderOrder of type Right-Down.
@@ -207,8 +200,6 @@ const (
 	StaggerOdd
 )
 
-
-
 const (
 	// FormatUnknown indicates an unknown/undefined TMX format.
 	FormatUnknown Format = iota
@@ -216,6 +207,19 @@ const (
 	FormatXML
 	// FormatJSON indicates the standard JSON-based TMX format.
 	FormatJSON
+)
+
+const (
+	// StyleBold indicates bold font style.
+	StyleBold FontStyle = 1 << iota
+	// StyleItalic indicates italic font style.
+	StyleItalic
+	// StyleUnderline indicates underline font style.
+	StyleUnderline
+	// StyleStrikeout indicates strikeout font style.
+	StyleStrikeout
+	// StyleKerning indicates if kerning should be used when rendering the text.
+	StyleKerning
 )
 
 const (
@@ -429,7 +433,7 @@ func (x *Encoding) UnmarshalText(text []byte) error {
 const _FillModeName = "stretchpreserve-aspect-fit"
 
 var _FillModeMap = map[FillMode]string{
-	FillStretch:           _FillModeName[0:7],
+	FillStretch:        _FillModeName[0:7],
 	FillPreserveAspect: _FillModeName[7:26],
 }
 
@@ -923,8 +927,6 @@ func (x *RenderOrder) UnmarshalText(text []byte) error {
 	return nil
 }
 
-
-
 const _StaggerAxisName = "xy"
 
 var _StaggerAxisMap = map[StaggerAxis]string{
@@ -975,8 +977,6 @@ func (x *StaggerAxis) UnmarshalText(text []byte) error {
 	*x = tmp
 	return nil
 }
-
-
 
 const _StaggerIndexName = "evenodd"
 
@@ -1030,3 +1030,4 @@ func (x *StaggerIndex) UnmarshalText(text []byte) error {
 }
 
 // vim: ts=4
+

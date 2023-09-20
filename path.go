@@ -1,10 +1,24 @@
 package tmx
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+)
+
+// Format describes the format of a TMX document.
+type Format int
+
+const (
+	// FormatUnknown indicates an unknown/undefined TMX format.
+	FormatUnknown Format = iota
+	// FormatXML indicates the standard XML-based TMX format.
+	FormatXML
+	// FormatJSON indicates the standard JSON-based TMX format.
+	FormatJSON
 )
 
 // PathResolve provides a mechanism for users to supply their own logic for resolving paths. This
@@ -13,7 +27,7 @@ import (
 // Because it expects a reader returned and not a path, this doubles as a way to implement a
 // "virtual" filesystem, where the path need not even exist on disk, such as files being embedded
 // into the binary as an internal resource.
-var PathResolve func(path string) io.ReadCloser
+var PathResolve func(path string) (io.ReadCloser, Format, error)
 
 // IncludePaths contains paths to directories that will be searched when resolving relative
 // file paths.
@@ -72,6 +86,70 @@ func FindPath(path string, base ...string) (string, error) {
 	}
 
 	return path, fmt.Errorf(`%w: "%s"`, os.ErrNotExist, path)
+}
+
+// detectFileExt attempts to determine the format based on its file extension, falling back
+// and attempting to use the file contents if it exists.
+func detectFileExt(path string) Format {
+	ext := strings.ToLower(filepath.Ext(path))
+
+	// Determine by file extension
+	switch ext {
+	case "":
+		return FormatUnknown
+	case ".tmx", ".tsx", ".tx", ".xml":
+		return FormatXML
+	case ".tmj", ".tsj", ".tj", ".json":
+		return FormatJSON
+	}
+	
+	// Fallback to detecting by file contents
+	if file, err := os.Open(path); err != nil {
+		return FormatUnknown
+	} else {
+		defer file.Close()
+		return detectReader(file)
+	}
+}
+
+// detectReader attempted to determine the format based on the text contents.
+func detectReader(reader io.ReadSeeker) Format {
+	// Record the current position
+	pos, err := reader.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return FormatUnknown
+	}
+	defer reader.Seek(pos, io.SeekStart)
+
+	// Scan characters until a '<', '{', or '[' is encountered
+	r := bufio.NewReader(reader)
+	for c, _, err := r.ReadRune(); err == nil; c, _, err = r.ReadRune() {	
+		switch c {
+		case '<':
+			return FormatXML
+		case '{', '[':
+			return FormatJSON
+		}
+	}
+
+	return FormatUnknown
+}
+
+// getStream finds the given path, returning a reader object, its resolved path, and 
+// detected TMX format.
+func getStream(path string) (reader io.ReadCloser, abs string, ft Format, err error) {
+	if abs, err = FindPath(path); err != nil {
+		return
+	}
+	
+	if reader, err = os.Open(abs); err == nil {		
+		ft = detectFileExt(abs)
+		return	
+	} else if PathResolve != nil {
+		reader, ft, err = PathResolve(abs)
+	}
+
+	return
 }
 
 // vim: ts=4

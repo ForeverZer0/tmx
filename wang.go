@@ -1,40 +1,164 @@
 package tmx
 
-import "fmt"
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+)
 
 // WangSet defines a list of colors and any number of Wang tiles using these colors.
 type WangSet struct {
 	// Name is the user-defined name of the Wang set.
-	Name string `xml:"name,attr" json:"name"`
+	Name string `xml:"name,attr"`
 	// Class is the user-defined class of the Wang set.
-	Class string `xml:"class,attr,omitempty" json:"class,omitempty"`
+	Class string `xml:"class,attr,omitempty"`
 	// Tile is the tile ID of the tile representing the Wang set.
-	Tile TileID `xml:"tile,attr" json:"tile"`
+	Tile TileID `xml:"tile,attr"`
 	// Type indicates the behavior of terrain generation.
-	Type WangType `xml:"type,attr" json:"type"`
+	Type WangType `xml:"type,attr"`
 	// Colors is a collection of up to 254 colors used by the Wang set.
-	Colors []WangColor `xml:"wangcolor" json:"colors"`
+	Colors []WangColor `xml:"wangcolor"`
 	// Tiles is a collection of tiles used by the Wang set.
-	Tiles []WangTile `xml:"wangtile" json:"wangtiles"`
+	Tiles []WangTile `xml:"wangtile"`
 	// Properties contain arbitrary key-value pairs of data to associate with the object.
-	Properties `xml:"properties" json:"properties"`
+	Properties `xml:"properties"`
+	// Properties []Property `xml:"properties" json:"properties"`
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (w *WangSet) UnmarshalJSON(data []byte) error {
+	d := json.NewDecoder(bytes.NewReader(data))
+	token, err := d.Token()
+	if err != nil {
+		return err
+	} else if token != json.Delim('{') {
+		return errors.New("expected JSON object")
+	}
+
+	for {
+		if token, err = d.Token(); err != nil {
+			return err
+		} else if token == json.Delim('}') {
+			break
+		}
+
+		name := token.(string)
+		switch name {
+		case "colors", "wangtiles", "properties":
+		default:
+			if token, err = d.Token(); err != nil {
+				return err
+			}
+		}
+
+		switch name {
+		case "name":
+			w.Name = token.(string)
+		case "class":
+			w.Class = token.(string)
+		case "tile":
+			w.Tile = TileID(token.(float64))
+		case "type":
+			if value, err := parseWangType(token.(string)); err != nil {
+				return err
+			} else {
+				w.Type = value
+			}
+		case "colors":
+			var colors []WangColor
+			if err = d.Decode(&colors); err != nil {
+				return err
+			}
+			w.Colors = colors
+		case "wangtiles":
+			var tiles []WangTile
+			if err = d.Decode(&tiles); err != nil {
+				return err
+			}
+			w.Tiles = tiles
+		case "properties":
+			props := make(Properties)
+			if err := d.Decode(&props); err != nil {
+				return err
+			}
+			w.Properties = props
+		default:
+			logProp(name, "wangset")
+		}
+	}
+	return nil
 }
 
 // WangColor is a color that can be used to define the corner and/or edge of a Wang tile.
 type WangColor struct {
 	// Name is the user-defined name of the Wang color.
-	Name string `json:"name" xml:"name,attr"`
+	Name string `xml:"name,attr"`
 	// Class is the user-defined class of the Wang color.
-	Class string `json:"class,omitempty" xml:"class,attr,omitempty"`
+	Class string `xml:"class,attr,omitempty"`
 	// Color is the RGB color used to represent the Wang color.
-	Color Color `json:"color" xml:"color,attr"`
+	Color Color `xml:"color,attr"`
 	// Tile is the tile ID of the tile representing the Wang color.
-	Tile TileID `json:"tile" xml:"tile,attr"`
+	Tile TileID `xml:"tile,attr"`
 	// Probability is the relative probability that this color is chosen over others
 	// in case of multiple options (defaults to 0).
-	Probability float64 `json:"probability,omitempty" xml:"probability,attr,omitempty"`
+	Probability float64 `xml:"probability,attr,omitempty"`
 	// Properties contain arbitrary key-value pairs of data to associate with the object.
-	Properties `json:"properties" xml:"properties"`
+	Properties `xml:"properties"`
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (w *WangColor) UnmarshalJSON(data []byte) error {
+	d := json.NewDecoder(bytes.NewReader(data))
+	token, err := d.Token()
+	if err != nil {
+		return err
+	} else if token != json.Delim('{') {
+		return errors.New("expected JSON object")
+	}
+
+	for {
+		if token, err = d.Token(); err != nil {
+			return err
+		} else if token == json.Delim('}') {
+			break
+		}
+
+		name := token.(string)
+		if name != "properties" {
+			if token, err = d.Token(); err != nil {
+				return err
+			}
+		}
+
+		switch name {
+		case "name":
+			w.Name = token.(string)
+		case "class":
+			w.Name = token.(string)
+		case "color":
+			if color, err := ParseColor(token.(string)); err != nil {
+				return err
+			} else {
+				w.Color = color
+			}
+		case "tile":
+			// TODO: Check if valid before cast
+			w.Tile = TileID(token.(float64))
+		case "probability":
+			w.Probability = token.(float64)
+		case "properties":
+			props := make(Properties)
+			if err := d.Decode(&props); err != nil {
+				return err
+			}
+			w.Properties = props
+		default:
+			logProp(name, "wangcolor")
+		}
+	}
+	
+	return nil
 }
 
 type WangTile struct {

@@ -10,6 +10,8 @@ type Container interface {
 	Tail() Layer
 	// Len returns the total number of layers within the container.
 	Len() int
+
+	AddLayer(layer Layer)
 }
 
 // container is a concrete implementation of the Container interface to be used as a composite
@@ -21,19 +23,19 @@ type container struct {
 	// TileLayers is a slice of all tile layers in the container.
 	//
 	// This is field is exported for convenience, but should not be modified (i.e. append/delete).
-	TileLayers []TileLayer
+	TileLayers []*TileLayer
 	// ImageLayers is a slice of all image layers in the container.
 	//
 	// This is field is exported for convenience, but should not be modified (i.e. append/delete).
-	ImageLayers []ImageLayer
+	ImageLayers []*ImageLayer
 	// ObjectLayers is a slice of all object layers in the container.
 	//
 	// This is field is exported for convenience, but should not be modified (i.e. append/delete).
-	ObjectLayers []ObjectLayer
+	ObjectLayers []*ObjectLayer
 	// GroupLayers is a slice of all group layers in the container.
 	//
 	// This is field is exported for convenience, but should not be modified (i.e. append/delete).
-	GroupLayers []GroupLayer
+	GroupLayers []*GroupLayer
 }
 
 // Head returns the first layer in a doubly linked-list of layers, or nil when empty.

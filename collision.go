@@ -1,6 +1,8 @@
 package tmx
 
 import (
+	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"strconv"
 )
@@ -15,6 +17,8 @@ type Collision struct {
 	DrawOrder DrawOrder
 	// Objects is a collection of shaped objects defining the collision.
 	Objects []Object
+	// cache is a resource cache that maintains references to shared objects.
+	cache *Cache
 }
 
 // UnmarshalXML implements the xml.Unmarshaler interface.
@@ -58,6 +62,66 @@ func (c *Collision) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 		}
 
 		token, err = d.Token()
+	}
+
+	return nil
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (c *Collision) UnmarshalJSON(data []byte) error {
+	d := json.NewDecoder(bytes.NewReader(data))
+	token, err := d.Token()
+	if err != nil {
+		return err
+	} else if token != json.Delim('{') {
+		return ErrExpectedObject
+	}
+
+	for {
+		if token, err = d.Token(); err != nil {
+			return err
+		} else if token == json.Delim('}') {
+			break
+		}
+
+		name := token.(string)
+		switch name {
+		case "id":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				c.ID = int(value)
+			}
+		case "draworder":
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if value, err := parseDrawOrder(str); err != nil {
+				return err
+			} else {
+				c.DrawOrder = value
+			}
+		case "objects":
+			if token, err = d.Token(); err != nil {
+				return err
+			} else if token != json.Delim('[') {
+				return ErrExpectedArray
+			}
+			for d.More() {
+				var obj Object
+				obj.cache = c.cache
+				if err = d.Decode(&obj); err != nil {
+					return err
+				}
+				c.Objects = append(c.Objects, obj)
+			}
+			// Position to next token ']'
+			if token, err = d.Token(); err != nil {
+				return err
+			}
+		default:
+			logProp(name, "objectgroup")
+			jsonSkip(d)
+		}
 	}
 
 	return nil

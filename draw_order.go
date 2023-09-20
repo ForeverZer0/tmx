@@ -5,8 +5,8 @@ import "fmt"
 type DrawOrder int
 
 const (
-	// DrawTopdown is a DrawOrder of type Topdown.
-	DrawTopdown DrawOrder = iota
+	// DrawTopDown is a DrawOrder of type Topdown.
+	DrawTopDown DrawOrder = iota
 	// DrawIndex is a DrawOrder of type Index.
 	DrawIndex
 )
@@ -14,7 +14,7 @@ const (
 const _DrawOrderName = "topdownindex"
 
 var _DrawOrderMap = map[DrawOrder]string{
-	DrawTopdown: _DrawOrderName[0:7],
+	DrawTopDown: _DrawOrderName[0:7],
 	DrawIndex:   _DrawOrderName[7:12],
 }
 
@@ -34,7 +34,7 @@ func (x DrawOrder) IsValid() bool {
 }
 
 var _DrawOrderValue = map[string]DrawOrder{
-	_DrawOrderName[0:7]:  DrawTopdown,
+	_DrawOrderName[0:7]:  DrawTopDown,
 	_DrawOrderName[7:12]: DrawIndex,
 }
 

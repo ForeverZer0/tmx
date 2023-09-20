@@ -143,7 +143,7 @@ func (obj *Object) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				return err
 			}
 		case "template":
-			if tmpl, err := OpenTX(attr.Value); err == nil {
+			if tmpl, err := OpenTemplate(attr.Value, nil); err == nil { // TODO: CACHE
 				obj.Template = tmpl
 			} else {
 				return err
@@ -301,7 +301,7 @@ func (obj *Object) UnmarshalJSON(data []byte) error {
 			obj.Visible = token.(bool)
 			obj.flags |= flagVisible
 		case "template":
-			if tmpl, err := OpenTX(token.(string)); err == nil {
+			if tmpl, err := OpenTemplate(token.(string), nil); err == nil { // TODO: CACHE
 				obj.Template = tmpl
 			} else {
 				return err
@@ -429,7 +429,7 @@ func (obj *Object) inherit() {
 		if obj.Properties == nil {
 			obj.Properties = make(Properties, len(tmp.Properties))
 		}
-		obj.Properties.Merge(tmp.Properties)
+		obj.Properties.Merge(tmp.Properties, false)
 	}
 }
 

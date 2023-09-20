@@ -2,7 +2,11 @@ package tmx
 
 import "fmt"
 
+// Align is a set of bitflags that describe the relational alignment of an object.
+type Align uint8
+
 const (
+	// AlignUnspecified indicates no alignment was specified and/or an invalid value.
 	AlignUnspecified Align = 0x00
 	AlignLeft        Align = 0x01
 	AlignRight       Align = 0x02

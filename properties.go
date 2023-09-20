@@ -172,14 +172,24 @@ func (p Properties) Clone() Properties {
 
 // Merge combines the values of another Properties, preserving existing values in the case
 // of conflicting keys.
-func (p Properties) Merge(other Properties) {
+//
+// When deep is specified, merging will occur recursively for nested custom types that are also
+// Properties. The custom types do not need to be of the same "class" to merge.
+func (p Properties) Merge(other Properties, deep bool) {
 	for k, v := range other {
-		if _, ok := p[k]; ok {
+		otherClass, isOtherClass := v.Value.(Properties)
+		if thisValue, exists := p[k]; exists {
+			if deep && isOtherClass {
+				if thisClass, isAlsoClass := thisValue.Value.(Properties); isAlsoClass {
+					thisClass.Merge(otherClass, deep)
+				}
+			}
 			continue
 		}
-		if class, ok := v.Value.(Properties); ok {
+
+		if isOtherClass {
 			prop := v
-			prop.Value = class.Clone()
+			prop.Value = otherClass.Clone()
 			p[k] = prop
 		} else {
 			p[k] = v

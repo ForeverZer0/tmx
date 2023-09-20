@@ -2,16 +2,11 @@ package tmx
 
 import "fmt"
 
-// ENUM(unspecified, left, right, top, bottom, justify, topleft, topright, bottomleft, bottomright, centerh, centerv, center)
-type Align uint8
-
-// nspecified, topleft, top, topright, left, center, right, bottomleft, bottom and bottomright. The default value is unspecified,
-
 // ObjectType provides strongly-typed constants describing types of map objects.
 type ObjectType int
 
 const (
-	// ObjectNone describes a standard object with no specialized type.
+	// ObjectNone describes a standard object with no specialized type (e.g. a rectangle).
 	ObjectNone ObjectType = iota
 	// ObjectEllipse describes a elliptical shape, using the existing fields to determine the size
 	// of the ellipse.

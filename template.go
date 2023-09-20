@@ -5,7 +5,7 @@ type Template struct {
 	Object  `json:"object" xml:"object"`
 }
 
-func OpenTX(path string) (*Template, error) {
+func OpenTemplate(path string, cache *Cache) (*Template, error) {
 	// TODO
 	return nil, nil
 }

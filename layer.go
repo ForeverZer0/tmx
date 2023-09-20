@@ -77,10 +77,16 @@ type jsonLayer struct {
 
 func (l *jsonLayer) UnmarshalJSON(data []byte) error {
 
+	
+
+
+
+
 	type alias jsonLayer
 	var temp alias
 	temp.Properties = make(Properties)
 	temp.Visible = true
+	temp.Opacity = 1.0
 
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
@@ -107,6 +113,8 @@ func (j *jsonLayer) toLayer() Layer {
 		impl.Chunks = j.Chunks
 
 		
+
+
 		// TODO: j.Data (string or array of gids)
 /*
 type TileData struct {

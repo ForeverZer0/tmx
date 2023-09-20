@@ -218,7 +218,7 @@ func (p Property) jsonValue(d *json.Decoder, dt DataType) (interface{}, error) {
 // every effort is made to set the correct type, this makes it impossible to
 // differentiate between certain values. For example, a float value may be written
 // as "0". Because there is no indicator for what type it is, it will be assumed to
-// be an integer, although that was not the .
+// be an integer, although that was not the case.
 //
 // https://github.com/mapeditor/tiled/issues/3820
 func (p Property) jsonClass(d *json.Decoder) (Properties, error) {

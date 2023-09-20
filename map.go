@@ -1,8 +1,10 @@
 package tmx
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -45,10 +47,10 @@ type Map struct {
 	ParallaxOrigin Vec2
 	// BackgroundColor is the background color for the map.
 	BackgroundColor Color
-	// nextLayerId stores the next available ID for new layers. This number is stored to prevent reuse of the same ID after layers have been removed. (since 1.2) (defaults to the highest layer id in the file + 1)
-	nextLayerId int
+	// NextLayerId stores the next available ID for new layers. This number is stored to prevent reuse of the same ID after layers have been removed. (since 1.2) (defaults to the highest layer id in the file + 1)
+	NextLayerId int
 	// nextobjectid stores the next available ID for new objects. This number is stored to prevent reuse of the same ID after objects have been removed. (since 0.11) (defaults to the highest object id in the file + 1)
-	nextObjectId int
+	NextObjectId int
 	// Infinite indicates whether this map is infinite. An infinite map has no fixed size and can grow in all directions. Its layer data is stored in chunks. (0 for false, 1 for true, defaults to 0)
 	Infinite bool
 	// Tilesets contains a collection of MapTileset objects used by the Map.
@@ -57,12 +59,22 @@ type Map struct {
 	Properties
 	// container is the base container implementation for types that hold a collection of layers.
 	container
+
+	cache *Cache
+}
+
+func (m *Map) initDefault() {
+	if m.cache == nil {
+		m.cache = NewCache()
+	}
+	m.compressionlevel = -1
+	m.TileSize = Size{Width: 16, Height: 16}
 }
 
 // UnmarshalXML implements the xml.Unmarshaler interface.
 func (m *Map) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	m.compressionlevel = -1
 
+	m.initDefault()
 	for _, attr := range start.Attr {
 		switch attr.Name.Local {
 		case "version":
@@ -151,13 +163,13 @@ func (m *Map) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 			}
 		case "nextlayerid":
 			if value, err := strconv.Atoi(attr.Value); err == nil {
-				m.nextLayerId = value
+				m.NextLayerId = value
 			} else {
 				return err
 			}
 		case "nextobjectid":
 			if value, err := strconv.Atoi(attr.Value); err == nil {
-				m.nextObjectId = value
+				m.NextObjectId = value
 			} else {
 				return err
 			}
@@ -193,6 +205,7 @@ func (m *Map) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 			case "tileset":
 				var tileset MapTileset
 				tileset.Map = m
+				tileset.cache = m.cache
 				if err := tileset.UnmarshalXML(d, child); err != nil {
 					return err
 				}
@@ -232,61 +245,241 @@ func (m *Map) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	return nil
 }
 
+
+func jsonProp[T any](d *json.Decoder) (value T, err error) {
+	var token json.Token
+	token, err = d.Token()
+	if err != nil {
+		return 
+	}
+
+	var ok bool
+	if value, ok = token.(T); !ok {
+		err = errors.New("TODO: Fill this out")
+	} 
+	return
+}
+
+func jsonSkip(d *json.Decoder) error {
+
+	var d1, d2 int
+
+	for {
+		token, err := d.Token()
+		if err != nil {
+			return err
+		}
+		switch token {
+		case json.Delim('}'):
+			d1--
+		case json.Delim(']'):
+			d2--
+		case json.Delim('{'):
+			d1++	
+		case json.Delim('['):
+			d2++
+		}
+		if d1 == 0 && d2 == 0 {
+			break 
+		}
+	}
+
+	return nil
+}
+
 func (m *Map) UnmarshalJSON(data []byte) error {
-	type jsonMap struct {
-		BackgroundColor  Color        `json:"backgroundcolor"`
-		Class            string       `json:"class"`
-		Compressionlevel int          `json:"compressionlevel"`
-		Width            int          `json:"width"`
-		Height           int          `json:"height"`
-		HexSideLength    int          `json:"hexsidelength"`
-		Infinite         bool         `json:"infinite"`
-		Layers           []jsonLayer  `json:"layers"`
-		NextLayerID      int          `json:"nextlayerid"`
-		NextObjectID     int          `json:"nextobjectid"`
-		Orientation      Orientation  `json:"orientation"`
-		ParallaxOriginX  float64      `json:"parallaxoriginx"`
-		ParallaxOriginY  float64      `json:"parallaxoriginy"`
-		Properties       Properties   `json:"properties"`
-		RenderOrder      RenderOrder  `json:"renderorder"`
-		StaggerAxis      StaggerAxis  `json:"staggeraxis"`
-		StaggerIndex     StaggerIndex `json:"staggerindex"`
-		TiledVersion     string       `json:"tiledversion"`
-		TileHeight       int          `json:"tileheight"`
-		TileWidth        int          `json:"tilewidth"`
-		Tilesets         []Tileset    `json:"tilesets"`
-		Type             string       `json:"type"`
-		Version          string       `json:"version"`
-	}
-	
-	var temp jsonMap
-	temp.Properties = make(Properties)
 
-	if err := json.Unmarshal(data, &temp); err != nil {
-		return err
+	m.initDefault()
+	d := json.NewDecoder(bytes.NewReader(data))
+	token, err := d.Token()
+	if token != json.Delim('{') {
+		return errors.New("expected JSON object")
 	}
-	
-	m.Version = temp.Version
-	m.TiledVersion = temp.TiledVersion
-	m.Class = temp.Class
-	m.Orientation = temp.Orientation
-	m.RenderOrder = temp.RenderOrder
-	m.BackgroundColor = temp.BackgroundColor
-	m.Size = Size{Width: temp.Width, Height: temp.Height}
-	m.TileSize = Size{Width: temp.TileWidth, Height: temp.TileHeight}
-	m.compressionlevel = temp.Compressionlevel
-	m.HexSideLength = temp.HexSideLength
-	m.StaggerAxis = temp.StaggerAxis
-	m.StaggerIndex = temp.StaggerIndex
-	m.ParallaxOrigin = Vec2{X: float32(temp.ParallaxOriginX), Y: float32(temp.ParallaxOriginY)}
-	m.nextLayerId = temp.NextLayerID
-	m.nextObjectId = temp.NextObjectID
-	m.Infinite = temp.Infinite
-	m.Properties = temp.Properties
 
-	for _, layer := range temp.Layers {
-		m.AddLayer(layer.toLayer())
+	for {
+		if token, err = d.Token(); err != nil {
+			return err
+		} else if token == json.Delim('}') {
+			break
+		}
+		
+		name := token.(string)
+
+		switch name {
+		case "backgroundcolor":
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if m.BackgroundColor, err = ParseColor(str); err != nil {
+				return err
+			}
+		case "class":
+			if m.Class, err = jsonProp[string](d); err != nil {
+				return err
+			}
+		case "compressionlevel":	
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				m.compressionlevel = int(value)
+			}
+		case "width":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				m.Size.Width = int(value)
+			}
+		case "height":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				m.Size.Height = int(value)
+			}
+		case "hexsidelength":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				m.HexSideLength = int(value)
+			}
+		case "infinite":
+			if m.Infinite, err = jsonProp[bool](d); err != nil {
+				return err
+			}
+		case "nextlayerid":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				m.NextLayerId = int(value)
+			}
+		case "nextobjectid":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				m.NextObjectId = int(value)
+			}
+		case "tileheight":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				m.TileSize.Height = int(value)
+			}
+		case "tilewidth":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				m.TileSize.Width = int(value)
+			}
+		case "version":
+			if m.Version, err = jsonProp[string](d); err != nil {
+				return err
+			}
+		case "tiledversion":
+			if m.TiledVersion, err = jsonProp[string](d); err != nil {
+				return err
+			}		
+		case "parallaxoriginx":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				m.ParallaxOrigin.X = float32(value)
+			}
+		case "parallaxoriginy":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				m.ParallaxOrigin.Y = float32(value)
+			}
+		case "type":
+			if _, err = d.Token(); err != nil {
+				return err
+			}
+		case "orientation":
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if m.Orientation, err = parseOrientation(str); err != nil {
+				return err
+			}
+		case "renderorder":
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if m.RenderOrder, err = parseRenderOrder(str); err != nil {
+				return err
+			}
+		case "staggeraxis":
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if m.StaggerAxis, err = parseStaggerAxis(str); err != nil {
+				return err
+			}
+		case "staggerindex":
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if m.StaggerIndex, err = parseStaggerIndex(str); err != nil {
+				return err
+			}
+		case "properties":
+			m.Properties = make(Properties)
+			if err = d.Decode(&m.Properties); err != nil {
+				return err
+			}
+		case "layers":
+			if token, err = d.Token(); err != nil {
+				return err
+			} else if token != json.Delim('[') {
+				return errors.New("expected JSON array")
+			}
+			for d.More() {
+				var layer jsonLayer
+				if err = d.Decode(&layer); err != nil {
+					return err
+				}
+				m.AddLayer(layer.toLayer())
+			}
+			// Position to next token ']'
+			if token, err = d.Token(); err != nil {
+				return err
+			}
+		case "tilesets":
+			if token, err = d.Token(); err != nil {
+				return err
+			} else if token != json.Delim('[') {
+				return errors.New("expected JSON array")
+			}
+			for d.More() {
+				var tileset MapTileset
+				tileset.Map = m
+				tileset.cache = m.cache
+
+				if err = d.Decode(&tileset); err != nil {
+					return err
+				}
+				m.Tilesets = append(m.Tilesets, &tileset)
+			}
+			// Position to next token ']'
+			if token, err = d.Token(); err != nil {
+				return err
+			}
+		default: 
+			jsonSkip(d)
+		}
 	}
+
+
+	//
+	// for _, tileset := range temp.Tilesets {
+	// 	// Skip embedded tilsets
+	// 	if tileset.Source == "" {
+	// 		continue
+	// 	}
+	// 	if ts, err := OpenTileset(tileset.Source, m.cache); err != nil {
+	// 		return err
+	// 	} else {
+	// 			}
+	// 	// TODO
+	// }
+	
+	// for _, layer := range temp.Layers {
+	// 	m.AddLayer(layer.toLayer())
+	// }
 
 	return nil
 }
@@ -318,27 +511,32 @@ func (m *Map) AddLayer(layer Layer) {
 		layer.setPrev(m.tail)
 	}
 	m.tail = layer
-	m.head.setParent(nil)
+	m.head.setParent(m)
 	m.head.setContainer(m)
 }
 
 // OpenMap reads a tilemap from a file, automatically detecting it format.
-func OpenMap(path string) (*Map, error) {
-	reader, abs, ft, err := getStream(path)
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	IncludePaths = append(IncludePaths, filepath.Dir(abs))
-	defer func() { IncludePaths = IncludePaths[:len(IncludePaths)-1] }()
-
-	return ReadMapFormat(reader, ft)
+//
+// An optional cache can be supplied that maintains references to tilesets and
+// templates to prevent frequent re-processing of them. When nil, an internal
+// cache will be used that only exists for the lifetime of the map.
+func OpenMap(path string, cache *Cache) (*Map, error) {
+	return OpenMapFormat(path, detectFileExt(path), cache)
 }
 
 // OpenMapFormat reads a tilemap from a file, using the specified format.
-func OpenMapFormat(path string, format Format) (tilemap *Map, err error) {
-	reader, abs, _, err := getStream(path)
+//
+// An optional cache can be supplied that maintains references to tilesets and
+// templates to prevent frequent re-processing of them. When nil, an internal
+// cache will be used that only exists for the lifetime of the map.
+func OpenMapFormat(path string, format Format, cache *Cache) (*Map, error) {
+	var abs string
+	var err error
+	if abs, err = FindPath(path); err != nil {
+		return nil, err
+	} 
+
+	reader, _, err := getStream(abs)
 	if err != nil {
 		return nil, err
 	}
@@ -346,35 +544,41 @@ func OpenMapFormat(path string, format Format) (tilemap *Map, err error) {
 
 	IncludePaths = append(IncludePaths, filepath.Dir(abs))
 	defer func() { IncludePaths = IncludePaths[:len(IncludePaths)-1] }()
+	
+	var tilemap Map
+	tilemap.Source = abs
+	tilemap.cache = cache
 
-	return ReadMapFormat(reader, format)
+	if err = ReadMapFormat(reader, format, &tilemap); err != nil {
+		return nil, err
+	}
+	return &tilemap, nil
 }
 
 // ReadMap reads a tilemap from the current position in the reader.
-func ReadMap(r io.ReadSeeker) (*Map, error) {
-	return ReadMapFormat(r, detectReader(r))
+func ReadMap(r io.ReadSeeker, tilemap *Map) (error) {
+	return ReadMapFormat(r, detectReader(r), tilemap)
 }
 
 // ReadMapFormat reads a tilemap from the current position in the reader using
 // the specified format.
-func ReadMapFormat(r io.Reader, format Format) (*Map, error) {
-	var tilemap Map
+func ReadMapFormat(r io.Reader, format Format, tilemap *Map) error {
 	switch format {
 	case FormatXML:
 		d := xml.NewDecoder(r)
-		if err := d.Decode(&tilemap); err != nil {
-			return nil, err
+		if err := d.Decode(tilemap); err != nil {
+			return err
 		}
 	case FormatJSON:
 		d := json.NewDecoder(r)
-		if err := d.Decode(&tilemap); err != nil {
-			return nil, err
+		if err := d.Decode(tilemap); err != nil {
+			return err
 		}
 	default:
-		return nil, errInvalidEnum("Format", fmt.Sprintf("Format(%d)", format))
+		return errInvalidEnum("Format", fmt.Sprintf("Format(%d)", format))
 	}
 
-	return &tilemap, nil
+	return nil
 }
 
 // vim: ts=4

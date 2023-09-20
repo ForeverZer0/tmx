@@ -137,11 +137,7 @@ func detectReader(reader io.ReadSeeker) Format {
 
 // getStream finds the given path, returning a reader object, its resolved path, and 
 // detected TMX format.
-func getStream(path string) (reader io.ReadCloser, abs string, ft Format, err error) {
-	if abs, err = FindPath(path); err != nil {
-		return
-	}
-	
+func getStream(abs string) (reader io.ReadCloser, ft Format, err error) {
 	if reader, err = os.Open(abs); err == nil {		
 		ft = detectFileExt(abs)
 		return	

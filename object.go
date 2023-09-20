@@ -73,6 +73,8 @@ type Object struct {
 	// from a template object, as it would otherwise be impossible to determine if a value of
 	// 0, false, "", etc. should be inherited, or it is merely a default.
 	flags setFlags
+	
+	cache *Cache
 }
 
 // UnmarshalXML implements the xml.Unmarshaler interface.
@@ -143,7 +145,7 @@ func (obj *Object) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				return err
 			}
 		case "template":
-			if tmpl, err := OpenTemplate(attr.Value, nil); err == nil { // TODO: CACHE
+			if tmpl, err := OpenTemplate(attr.Value, obj.cache); err == nil {
 				obj.Template = tmpl
 			} else {
 				return err
@@ -301,7 +303,7 @@ func (obj *Object) UnmarshalJSON(data []byte) error {
 			obj.Visible = token.(bool)
 			obj.flags |= flagVisible
 		case "template":
-			if tmpl, err := OpenTemplate(token.(string), nil); err == nil { // TODO: CACHE
+			if tmpl, err := OpenTemplate(token.(string), obj.cache); err == nil {
 				obj.Template = tmpl
 			} else {
 				return err

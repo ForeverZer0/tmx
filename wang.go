@@ -3,8 +3,12 @@ package tmx
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"log"
+	"strconv"
+	"strings"
 )
 
 // WangSet defines a list of colors and any number of Wang tiles using these colors.
@@ -23,6 +27,71 @@ type WangSet struct {
 	Tiles []WangTile `xml:"wangtile"`
 	// Properties contain arbitrary key-value pairs of data to associate with the object.
 	Properties `xml:"properties"`
+}
+
+func (w *WangSet) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	for _, attr := range start.Attr {
+		switch attr.Name.Local {
+		case "name":
+			w.Name = attr.Value
+		case "class":
+			w.Class = attr.Value
+		case "tile":
+			var id TileID
+			if err := id.UnmarshalText([]byte(attr.Value)); err != nil {
+				return err
+			} else {
+				w.Tile = id
+			}		
+		case "type":
+			if value, err := parseWangType(attr.Value); err != nil {
+				return err
+			} else {
+				w.Type = value
+			}
+		default:
+			logAttr(attr.Name.Local, start.Name.Local)
+		}
+	}	
+
+	token, err := d.Token()
+	for token != start.End() {
+		if err != nil {
+			return err
+		}
+
+		if child, ok := token.(xml.StartElement); ok {
+			switch child.Name.Local {
+			case "wangcolor":
+				var color WangColor
+				if err := d.DecodeElement(&color, &child); err != nil {
+					return err
+				} else {
+					w.Colors = append(w.Colors, color)
+				}
+			case "wangtile":
+				var tile WangTile
+				if err := d.DecodeElement(&tile, &child); err != nil {
+					return err
+				} else {
+					w.Tiles = append(w.Tiles, tile)
+				}
+			case "properties":
+				props := make(Properties)
+				if err := d.DecodeElement(&props, &child); err != nil {
+					return err
+				} else {
+					w.Properties = props
+				}
+			default:
+				logElem(child.Name.Local, start.Name.Local)
+			}
+		}
+
+		token, err = d.Token()
+	}
+
+	return nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -92,18 +161,73 @@ func (w *WangSet) UnmarshalJSON(data []byte) error {
 // WangColor is a color that can be used to define the corner and/or edge of a Wang tile.
 type WangColor struct {
 	// Name is the user-defined name of the Wang color.
-	Name string `xml:"name,attr"`
+	Name string
 	// Class is the user-defined class of the Wang color.
-	Class string `xml:"class,attr,omitempty"`
+	Class string
 	// Color is the RGB color used to represent the Wang color.
-	Color Color `xml:"color,attr"`
+	Color Color
 	// Tile is the tile ID of the tile representing the Wang color.
-	Tile TileID `xml:"tile,attr"`
+	Tile TileID
 	// Probability is the relative probability that this color is chosen over others
 	// in case of multiple options (defaults to 0).
-	Probability float64 `xml:"probability,attr,omitempty"`
+	Probability float64
 	// Properties contain arbitrary key-value pairs of data to associate with the object.
-	Properties `xml:"properties"`
+	Properties
+}
+
+func (w *WangColor) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	for _, attr := range start.Attr {
+		switch attr.Name.Local {
+		case "name":
+			w.Name = attr.Value
+		case "class":
+			w.Class = attr.Value
+		case "color":
+			if color, err := ParseColor(attr.Value); err != nil {
+				return err
+			} else {
+				w.Color = color
+			}
+		case "tile":
+			var id TileID
+			if err := id.UnmarshalText([]byte(attr.Value)); err != nil {
+				return err
+			} else {
+				w.Tile = id
+			}
+		case "probability":
+			if value, err := strconv.ParseFloat(attr.Value, 64); err != nil {
+				return err
+			} else {
+				w.Probability = value
+			}
+		default:
+			logAttr(attr.Name.Local, start.Name.Local)
+		}
+	}
+
+	token, err := d.Token()
+	for token != start.End() {
+		if err != nil {
+			return err
+		}
+
+		if child, ok := token.(xml.StartElement); ok {
+			switch child.Name.Local {
+			case "properties":
+				props := make(Properties)
+				if err := d.DecodeElement(&props, &child); err != nil {
+					return err
+				} else {
+					w.Properties = props
+				}
+			default:
+				logElem(child.Name.Local, start.Name.Local)
+			}
+		}
+		token, err = d.Token()
+	}
+	return nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -162,19 +286,82 @@ func (w *WangColor) UnmarshalJSON(data []byte) error {
 
 type WangTile struct {
 	// Tile is the local tile ID used by the Wang tile.
-	Tile TileID `xml:"tileid,attr" json:"tileid"`
+	Tile TileID `json:"tileid"`
 	// WangID is a list of indices (0-254) referring to the Wang colors in the Wang set in
 	// the order: top, top-right, right, bottom-right, bottom, bottom-left, left, top-left.
 	//
 	// Index 0 means unset and index 1 refers to the first Wang color.
-	WangID []int `xml:"wangid,attr" json:"wangid"`
+	WangID [8]uint8 `json:"wangid"`
 	// Deprecated: Defaults to false and is now defined in Transformations.
-	HFlip bool `xml:"hflip,attr" json:"hflip"`
+	HFlip bool `json:"hflip"`
 	// Deprecated: Defaults to false and is now defined in Transformations.
-	VFlip bool `xml:"vflip,attr" json:"vflip"`
+	VFlip bool `json:"vflip"`
 	// Deprecated: Defaults to false and is now defined in Transformations.
-	DFlip bool `xml:"dflip,attr" json:"dflip"`
+	DFlip bool `json:"dflip"`
 }
+
+func (w *WangTile) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	for _, attr := range start.Attr {
+		switch attr.Name.Local {
+		case "tileid":
+			var id TileID
+			if err := id.UnmarshalText([]byte(attr.Value)); err != nil {
+				return err
+			} else {
+				w.Tile = id
+			}
+		case "wangid":
+			fields := strings.Split(attr.Value, ",")
+			if len(fields) > len(w.WangID) {
+				return errors.New("expected array of 8 elements or less in WangTile")
+			}
+			for i := 0; i < len(fields); i++ {
+				if value, err := strconv.ParseUint(fields[i], 10, 8); err != nil {
+					return err
+				} else {
+					w.WangID[i] = uint8(value)
+				}
+			}
+		case "hflip":
+			log.Println("WangTile: hflip is deprecated, use Transformations")
+			if value, err := strconv.ParseBool(attr.Value); err != nil {
+				return err
+			} else {
+				w.HFlip = value
+			}
+		case "vflip":
+			log.Println("WangTile: vflip is deprecated, use Transformations")
+			if value, err := strconv.ParseBool(attr.Value); err != nil {
+				return err
+			} else {
+				w.VFlip = value
+			}
+		case "dlip":
+			log.Println("WangTile: dflip is deprecated, use Transformations")
+			if value, err := strconv.ParseBool(attr.Value); err != nil {
+				return err
+			} else {
+				w.DFlip = value
+			}
+		default:
+			logAttr(attr.Name.Local, start.Name.Local)
+		}
+	}
+
+	token, err := d.Token()
+	for token != start.End() {
+		if err != nil {
+			return err
+		}
+		if child, ok := token.(xml.StartElement); ok {
+			logElem(child.Name.Local, start.Name.Local)
+		}
+		token, err = d.Token()
+	}
+
+	return nil
+}
+
 
 // WangType describes the behavior of terrain generation.
 type WangType int

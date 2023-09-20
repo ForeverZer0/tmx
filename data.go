@@ -261,4 +261,46 @@ func inflate(src, dst []byte, comp Compression) error {
 	return nil
 }
 
+// postProcess performs any necessary operations to decode, inflate, and cleanup tile data,
+// as well as  ensure it is correctly defined and of the required size.
+func (data *TileData) postProcess(tileCount int) error {
+	if len(data.Chunks) > 0 {
+		for i := range data.Chunks {
+			chunk := &data.Chunks[i]
+			area := chunk.Width * chunk.Height
+			if len(chunk.tileData) == 0 {
+				if len(chunk.Tiles) != area {
+					return fmt.Errorf("not enough tiles in chunk [%d, %d]", chunk.X, chunk.Y)
+				}
+				continue
+			}
+
+			chunk.Tiles = make([]TileID, area)
+			if err := data.decode(chunk.tileData, chunk.Tiles); err != nil {
+				return err
+			}
+			chunk.tileData = nil
+		}
+
+		return nil
+	}
+
+	if len(data.Tiles) > 0 {
+		if len(data.Tiles) != tileCount {
+			return fmt.Errorf(`not enough tiles in tile layer`)
+		} else {
+			return nil
+		}
+	}
+
+	data.Tiles = make([]TileID, tileCount)
+	if err := data.decode(data.tileData, data.Tiles); err != nil {
+		return err
+	} else {
+		data.tileData = nil
+	}
+
+	return nil
+}
+
 // vim: ts=4

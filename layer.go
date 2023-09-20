@@ -1,8 +1,10 @@
 package tmx
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"strconv"
 )
 
@@ -55,11 +57,13 @@ type jsonLayer struct {
 	Visible    bool       `json:"visible"`
 	Properties Properties `json:"properties"`
 
-	// Tile layer only
-	Chunks      []Chunk     `json:"chunks"`
-	Compression Compression `json:"compression"`
-	Encoding    Encoding    `json:"encoding"`
-	Data        []byte      `json:"data"`
+	Data TileData 
+
+	// // Tile layer only
+	// Chunks      []Chunk     `json:"chunks"`
+	// Compression Compression `json:"compression"`
+	// Encoding    Encoding    `json:"encoding"`
+	// Data        []byte      `json:"data"`
 
 	// Image layer only
 	TransparentColor Color  `json:"transparentcolor"`
@@ -73,25 +77,267 @@ type jsonLayer struct {
 	// ObjectGroup
 	Objects   []Object  `json:"objects"`
 	DrawOrder DrawOrder `json:"draworder"`
+
+	cache *Cache
 }
 
 func (l *jsonLayer) UnmarshalJSON(data []byte) error {
-
-	
-
-
-
-
-	type alias jsonLayer
-	var temp alias
-	temp.Properties = make(Properties)
-	temp.Visible = true
-	temp.Opacity = 1.0
-
-	if err := json.Unmarshal(data, &temp); err != nil {
+	d := json.NewDecoder(bytes.NewReader(data))
+	token, err := d.Token()
+	if err != nil {
 		return err
+	} else if token != json.Delim('{') {
+		return errors.New("expected JSON object")
 	}
-	*l = jsonLayer(temp)
+	
+	for {
+		if token, err = d.Token(); err != nil {
+			return err
+		} else if token == json.Delim('}') {
+			break
+		}
+
+		name := token.(string)
+		switch name {
+		case "id":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				l.ID = int(value)
+			}
+		case "name":
+			if l.Name, err = jsonProp[string](d); err != nil {
+				return err
+			}
+		case "class":
+			if l.Class, err = jsonProp[string](d); err != nil {
+				return err
+			}
+		case "type":
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if value, err := parseLayerType(str); err != nil {
+				return err
+			} else {
+				l.Type = value
+			}
+		case "x":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				l.X = int(value)
+			}
+		case "y":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				l.Y = int(value)
+			}
+		case "width":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				l.Width = int(value)
+			}
+		case "height":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				l.Height = int(value)
+			}
+		case "offsetx":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				l.OffsetX = float32(value)
+			}
+		case "offsety":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				l.OffsetY = float32(value)
+			}
+		case "parallaxx":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				l.ParallaxX = float32(value)
+			}
+		case "parallaxy":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				l.ParallaxY = float32(value)
+			}
+		case "opacity":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				l.Opacity = float32(value)
+			}
+		case "startx":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				l.StartX = int(value)
+			}
+		case "starty":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				l.StartY = int(value)
+			}
+		case "tintcolor":
+			if value, err := jsonProp[string](d); err != nil {
+				return err
+			} else if color, err := ParseColor(value); err != nil {
+				return err
+			} else {
+				l.TintColor = color
+			}
+		case "visible":
+			if value, err := jsonProp[bool](d); err != nil {
+				return err
+			} else {
+				l.Visible = value
+			}
+		case "properties":
+			props := make(Properties)
+			if err := d.Decode(&props); err != nil {
+				return err
+			}
+			l.Properties = props
+		case "compression":
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if value, err := parseCompression(str); err != nil {
+				return err
+			} else {
+				l.Data.Compression = value
+			}
+		case "encoding":
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if value, err := parseEncoding(str); err != nil {
+				return err
+			} else {
+				l.Data.Encoding = value
+			}
+		case "draworder":
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if value, err := parseDrawOrder(str); err != nil {
+				return err
+			} else {
+				l.DrawOrder = value
+			}
+		case "transparentcolor":
+			if value, err := jsonProp[string](d); err != nil {
+				return err
+			} else if color, err := ParseColor(value); err != nil {
+				return err
+			} else {
+				l.TransparentColor = color
+			}
+		case "image":
+			if l.Image, err = jsonProp[string](d); err != nil {
+				return err
+			}
+		case "repeatx":
+			if value, err := jsonProp[bool](d); err != nil {
+				return err
+			} else {
+				l.RepeatX = value
+			}
+		case "repeaty":
+			if value, err := jsonProp[bool](d); err != nil {
+				return err
+			} else {
+				l.RepeatY = value
+			}
+		case "objects":
+			if token, err = d.Token(); err != nil {
+				return err
+			} else if token != json.Delim('[') {
+				return errors.New("expected JSON array")
+			}
+			for d.More() {
+				var obj Object
+				obj.cache = l.cache
+				if err = d.Decode(&obj); err != nil {
+					return err
+				}
+				l.Objects = append(l.Objects, obj)
+			}
+			// Position to next token ']'
+			if token, err = d.Token(); err != nil {
+				return err
+			}
+		case "layers":
+			if token, err = d.Token(); err != nil {
+				return err
+			} else if token != json.Delim('[') {
+				return errors.New("expected JSON array")
+			}
+			for d.More() {
+				var child jsonLayer
+				child.cache = l.cache
+				if err = d.Decode(&child); err != nil {
+					return err
+				}
+				l.Layers = append(l.Layers, child)
+			}
+			// Position to next token ']'
+			if token, err = d.Token(); err != nil {
+				return err
+			}
+		case "chunks":
+			if token, err = d.Token(); err != nil {
+				return err
+			} else if token != json.Delim('[') {
+				return errors.New("expected JSON array")
+			}
+			for d.More() {
+				var chunk Chunk
+				if err = d.Decode(&chunk); err != nil {
+					return err
+				}
+				l.Data.Chunks = append(l.Data.Chunks, chunk)
+			}
+			// Position to next token ']'
+			if token, err = d.Token(); err != nil {
+				return err
+			}
+		case "data":
+			if token, err = d.Token(); err != nil {
+				return err
+			}
+
+			if token == json.Delim('[') {
+				for d.More() {
+					if value, err := jsonProp[float64](d); err != nil {
+						return err
+					} else {
+						l.Data.Tiles = append(l.Data.Tiles, TileID(value))
+					}
+				}
+				// Position to next token ']'
+				if token, err = d.Token(); err != nil {
+					return err
+				}
+
+			} else if str, ok := token.(string); ok {
+				l.Data.tileData = []byte(str)
+			}
+		default:
+			jsonSkip(d)
+		}
+	}
+	
+	if l.Type == LayerTile {
+		return l.Data.postProcess(l.Width * l.Height)
+	}
+
 	return nil
 }
 
@@ -108,31 +354,7 @@ func (j *jsonLayer) toLayer() Layer {
 		var impl TileLayer
 		base = &impl.baseLayer
 		layer = &impl
-		impl.Compression = j.Compression
-		impl.Encoding = j.Encoding
-		impl.Chunks = j.Chunks
-
-		
-
-
-		// TODO: j.Data (string or array of gids)
-/*
-type TileData struct {
-	// Compression is the compression algorithm used to deflate the payload during serialization.
-	Compression Compression
-	// Encoding is the encoding used to encode the payload during serialization.
-	Encoding Encoding
-	// Chunks contains the the chunk data for infinite maps, otherwise empty.
-	Chunks []Chunk
-	// Tiles contains the tile definitions, or empty for infinite maps.
-	Tiles []TileID
-	// tileData contains the raw data from the XML/JSON. After the document is read without
-	// error, it is processed and then discarded.
-	tileData []byte
-}
-*/
-
-
+		impl.TileData = j.Data
 	case LayerImage:
 		var impl ImageLayer
 		layer = &impl
@@ -212,6 +434,8 @@ type baseLayer struct {
 	next Layer
 	// next maintains a reference to the previous layer in the linked-list.
 	prev Layer
+	// cache is a reference to the parent map's Cache.
+	cache *Cache
 }
 
 // xmlAttr attempts to process the given attribute into the base layer type, returning whether

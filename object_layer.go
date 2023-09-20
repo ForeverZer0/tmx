@@ -86,6 +86,7 @@ func (layer *ObjectLayer) UnmarshalXML(d *xml.Decoder, start xml.StartElement) e
 				}
 			case "object":
 				var obj Object
+				obj.cache = layer.cache
 				if err := obj.UnmarshalXML(d, next); err != nil {
 					return err
 				}

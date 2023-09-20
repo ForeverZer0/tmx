@@ -200,11 +200,14 @@ func (ts *Tileset) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				// TODO: Parse
 				log.Println("terraintypes are no longer supported, use wangsets instead")
 			case "wangsets":
-				var wang WangSet
+				type wangsets struct {
+					Values []WangSet `xml:"wangset"`
+				}
+				var wang wangsets
 				if err := d.DecodeElement(&wang, &child); err != nil {
 					return err
 				}
-				ts.WangSets = append(ts.WangSets, wang)
+				ts.WangSets = wang.Values
 			case "transformations":
 				var trans Transformations
 				if d.DecodeElement(&trans, &child); err != nil {

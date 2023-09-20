@@ -1,5 +1,9 @@
 package tmx
 
+// Cache provides a mechanism for maintaining references that are shared among multiple
+// objects or that will be used frequently.
+//
+// 
 type Cache struct {
 	tilesets  map[string]*Tileset
 	templates map[string]*Template

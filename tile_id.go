@@ -56,7 +56,7 @@ func (id *TileID) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Unmarshaltext implements the encoding.TextUnmarshaler interface.
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
 func (id *TileID) UnmarshalText(text []byte) error {
 	str := string(text)
 	if value, err := strconv.ParseUint(str, 10, 32); err != nil {

@@ -212,24 +212,28 @@ func (m *Map) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				m.Tilesets = append(m.Tilesets, &tileset)
 			case "layer":
 				var layer TileLayer
+				layer.cache = m.cache
 				if err := layer.UnmarshalXML(d, child); err != nil {
 					return err
 				}
 				m.AddLayer(&layer)
 			case "objectgroup":
 				var layer ObjectLayer
+				layer.cache = m.cache
 				if err := layer.UnmarshalXML(d, child); err != nil {
 					return err
 				}
 				m.AddLayer(&layer)
 			case "imagelayer":
 				var layer ImageLayer
+				layer.cache = m.cache
 				if err := layer.UnmarshalXML(d, child); err != nil {
 					return err
 				}
 				m.AddLayer(&layer)
 			case "group":
 				var layer GroupLayer
+				layer.cache = m.cache
 				if err := layer.UnmarshalXML(d, child); err != nil {
 					return err
 				}

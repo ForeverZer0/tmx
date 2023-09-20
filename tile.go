@@ -132,7 +132,7 @@ func (t *Tile) UnmarshalJSON(data []byte) error {
 		Image       string     `json:"image"`
 		ImageHeight int        `json:"imageheight"`
 		ImageWidth  int        `json:"imagewidth"`
-		Collision   *Collision `json:"objectgroup"`
+		Collision   *Collision `json:"objectgroup"` // TODO
 		Probability float64    `json:"probability"`
 		Properties  Properties `json:"properties"`
 		// Terrain     []int      `json:"terrain"`

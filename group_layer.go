@@ -36,29 +36,25 @@ func (layer *GroupLayer) UnmarshalXML(d *xml.Decoder, start xml.StartElement) er
 					if err := d.DecodeElement(&value, &child); err != nil {
 						return err
 					}
-					layer.linkLayer(&value)
-					layer.TileLayers = append(layer.TileLayers, value)
+					layer.AddLayer(&value)
 				case "objectgroup":
 					var value ObjectLayer
 					if err := d.DecodeElement(&value, &child); err != nil {
 						return err
 					}
-					layer.linkLayer(&value)
-					layer.ObjectLayers = append(layer.ObjectLayers, value)
+					layer.AddLayer(&value)
 				case "imagelayer":
 					var value ImageLayer
 					if err := d.DecodeElement(&value, &child); err != nil {
 						return err
 					}
-					layer.linkLayer(&value)
-					layer.ImageLayers = append(layer.ImageLayers, value)
+					layer.AddLayer(&value)
 				case "group":
 					var value GroupLayer
 					if err := d.DecodeElement(&value, &child); err != nil {
 						return err
 					}
-					layer.linkLayer(&value)
-					layer.GroupLayers = append(layer.GroupLayers, value)
+					layer.AddLayer(&value)
 				default:
 					logElem(child.Name.Local, start.Name.Local)
 				}
@@ -71,7 +67,19 @@ func (layer *GroupLayer) UnmarshalXML(d *xml.Decoder, start xml.StartElement) er
 }
 
 // linkLayer configures the Prev/Next values of new layer, as well as the Head/Tail of the map.
-func (g *GroupLayer) linkLayer(layer Layer) {
+func (g *GroupLayer) AddLayer(layer Layer) {
+
+	switch v := layer.(type) {
+	case *TileLayer:
+		g.TileLayers = append(g.TileLayers, v)
+	case *ImageLayer:
+		g.ImageLayers = append(g.ImageLayers, v)
+	case *ObjectLayer:
+		g.ObjectLayers = append(g.ObjectLayers, v)
+	case *GroupLayer:
+		g.GroupLayers = append(g.GroupLayers, v)
+	}
+
 	if g.head == nil {
 		g.head = layer
 	}

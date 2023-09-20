@@ -26,9 +26,11 @@ type Image struct {
 	Format string
 	// Source is the reference to the tileset image file. Only used if the image is not embedded.
 	Source string
-	// Transparency defines a specific color that is treated as transparent.
+	// Transparency defines a specific color that is treated as transparent. The default value is
+	// a "zero" value (i.e. Color(0))
 	Transparency Color
-	// Size describes the dimensions of the image in pixel units (optional).
+	// Size describes the dimensions of the image in pixel units. This field is optional and not
+	// always provided.
 	Size Size
 	// Data contains the payload of an embedded image. This is not supported by the Tiled editor,
 	// but is by the TMX specification.

@@ -34,7 +34,7 @@ func (layer *TileLayer) UnmarshalXML(d *xml.Decoder, start xml.StartElement) err
 			} else if !handled {
 				switch child.Name.Local {
 				case "data":
-					if err := d.DecodeElement(&layer.TileData, &start); err != nil {
+					if err := d.DecodeElement(&layer.TileData, &child); err != nil {
 						return err
 					}
 				default:

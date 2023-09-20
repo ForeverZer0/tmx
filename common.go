@@ -19,7 +19,7 @@ type ErrInvalidEnum struct {
 
 // Error implements the error interface.
 func (e *ErrInvalidEnum) Error() string {
-	return fmt.Sprintf("%s is not a valid  %s", e.Value, e.EnumType)
+	return fmt.Sprintf("%s is not a valid %s", e.Value, e.EnumType)
 }
 
 // errInvalidEnum is a helper function to create a new ErrInvalidEnum error.

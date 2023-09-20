@@ -23,7 +23,6 @@ type WangSet struct {
 	Tiles []WangTile `xml:"wangtile"`
 	// Properties contain arbitrary key-value pairs of data to associate with the object.
 	Properties `xml:"properties"`
-	// Properties []Property `xml:"properties" json:"properties"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

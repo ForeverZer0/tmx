@@ -9,18 +9,6 @@ import (
 	"strings"
 )
 
-// Format describes the format of a TMX document.
-type Format int
-
-const (
-	// FormatUnknown indicates an unknown/undefined TMX format.
-	FormatUnknown Format = iota
-	// FormatXML indicates the standard XML-based TMX format.
-	FormatXML
-	// FormatJSON indicates the standard JSON-based TMX format.
-	FormatJSON
-)
-
 // PathResolve provides a mechanism for users to supply their own logic for resolving paths. This
 // can be useful when the built-in path resolving does not satisfy the needs of the project.
 //

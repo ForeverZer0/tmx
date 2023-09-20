@@ -5,6 +5,24 @@ import (
 	"log"
 )
 
+type ErrFormat struct{
+	Message string
+}
+
+func (e *ErrFormat) Error() string {
+	if e.Message != "" {
+		return fmt.Sprintf("format error: %s", e.Message)
+	}
+	return "forrmat error"
+}
+
+func errFormat(message string) error {
+	return &ErrFormat{Message: message}
+}
+
+var ErrExpectedObject error = errFormat("expected JSON object")
+var ErrExpectedArray error = errFormat("expected JSON array")
+
 // Cloner represents a type that can create a deep-clone.
 type Cloner[T any] interface {
 	// Clone creates a deep-clone and returns it.

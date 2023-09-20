@@ -10,35 +10,6 @@ import (
 	"strings"
 )
 
-type setFlags uint32
-
-const (
-	flagName setFlags = 1 << iota
-	flagClass
-	flagX
-	flagY
-	flagWidth
-	flagHeight
-	flagRotation
-	flagGID
-	flagVisible
-	flagKind
-	flagPoints
-	// Text flags
-	flagFont
-	flagFontSize
-	flagTextWrap
-	flagTextColor
-	flagBold
-	flagItalic
-	flagUnderline
-	flagStrikeout
-	flagKerning
-	flagHAlign
-	flagVAlign
-	flagText
-)
-
 // Object is an arbitray entity that can be placed on the map, or even invisible to define
 // regions, events, etc.
 type Object struct {

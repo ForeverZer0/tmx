@@ -66,31 +66,10 @@ func (layer *GroupLayer) UnmarshalXML(d *xml.Decoder, start xml.StartElement) er
 	return nil
 }
 
-// linkLayer configures the Prev/Next values of new layer, as well as the Head/Tail of the map.
+// AddLayer appends a new layer to the group.
 func (g *GroupLayer) AddLayer(layer Layer) {
-
-	switch v := layer.(type) {
-	case *TileLayer:
-		g.TileLayers = append(g.TileLayers, v)
-	case *ImageLayer:
-		g.ImageLayers = append(g.ImageLayers, v)
-	case *ObjectLayer:
-		g.ObjectLayers = append(g.ObjectLayers, v)
-	case *GroupLayer:
-		g.GroupLayers = append(g.GroupLayers, v)
-	}
-
-	if g.head == nil {
-		g.head = layer
-	}
-
-	if g.tail != nil {
-		g.tail.setNext(layer)
-		layer.setPrev(g.tail)
-	}
-	g.tail = layer
+	g.container.AddLayer(layer)
 	g.head.setParent(g.parent)
-	g.head.setContainer(g)
 }
 
 // vim: ts=4

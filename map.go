@@ -73,7 +73,6 @@ func (m *Map) initDefault() {
 
 // UnmarshalXML implements the xml.Unmarshaler interface.
 func (m *Map) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-
 	m.initDefault()
 	for _, attr := range start.Attr {
 		switch attr.Name.Local {
@@ -249,23 +248,21 @@ func (m *Map) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	return nil
 }
 
-
 func jsonProp[T any](d *json.Decoder) (value T, err error) {
 	var token json.Token
 	token, err = d.Token()
 	if err != nil {
-		return 
+		return
 	}
 
 	var ok bool
 	if value, ok = token.(T); !ok {
 		err = errors.New("TODO: Fill this out")
-	} 
+	}
 	return
 }
 
 func jsonSkip(d *json.Decoder) error {
-
 	var d1, d2 int
 
 	for {
@@ -279,12 +276,12 @@ func jsonSkip(d *json.Decoder) error {
 		case json.Delim(']'):
 			d2--
 		case json.Delim('{'):
-			d1++	
+			d1++
 		case json.Delim('['):
 			d2++
 		}
 		if d1 == 0 && d2 == 0 {
-			break 
+			break
 		}
 	}
 
@@ -292,7 +289,6 @@ func jsonSkip(d *json.Decoder) error {
 }
 
 func (m *Map) UnmarshalJSON(data []byte) error {
-
 	m.initDefault()
 	d := json.NewDecoder(bytes.NewReader(data))
 	token, err := d.Token()
@@ -306,7 +302,7 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 		} else if token == json.Delim('}') {
 			break
 		}
-		
+
 		name := token.(string)
 
 		switch name {
@@ -320,7 +316,7 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 			if m.Class, err = jsonProp[string](d); err != nil {
 				return err
 			}
-		case "compressionlevel":	
+		case "compressionlevel":
 			if value, err := jsonProp[float64](d); err != nil {
 				return err
 			} else {
@@ -379,7 +375,7 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 		case "tiledversion":
 			if m.TiledVersion, err = jsonProp[string](d); err != nil {
 				return err
-			}		
+			}
 		case "parallaxoriginx":
 			if value, err := jsonProp[float64](d); err != nil {
 				return err
@@ -462,61 +458,24 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 			if token, err = d.Token(); err != nil {
 				return err
 			}
-		default: 
+		default:
 			jsonSkip(d)
 		}
 	}
 
-
-	//
-	// for _, tileset := range temp.Tilesets {
-	// 	// Skip embedded tilsets
-	// 	if tileset.Source == "" {
-	// 		continue
-	// 	}
-	// 	if ts, err := OpenTileset(tileset.Source, m.cache); err != nil {
-	// 		return err
-	// 	} else {
-	// 			}
-	// 	// TODO
-	// }
-	
-	// for _, layer := range temp.Layers {
-	// 	m.AddLayer(layer.toLayer())
-	// }
-
 	return nil
 }
 
+// AddTileset appends a new tilset to the map.
 func (m *Map) AddTileset(ts *Tileset, first TileID) {
 	value := MapTileset{Tileset: ts, FirstGID: first}
 	m.Tilesets = append(m.Tilesets, &value)
 }
 
-// linkLayer configures the Prev/Next values of new layer, as well as the Head/Tail of the map.
+// AddLayer appends a new layer to the map.
 func (m *Map) AddLayer(layer Layer) {
-	switch v := layer.(type) {
-	case *TileLayer:
-		m.TileLayers = append(m.TileLayers, v)
-	case *ImageLayer:
-		m.ImageLayers = append(m.ImageLayers, v)
-	case *ObjectLayer:
-		m.ObjectLayers = append(m.ObjectLayers, v)
-	case *GroupLayer:
-		m.GroupLayers = append(m.GroupLayers, v)
-	}
-
-	if m.head == nil {
-		m.head = layer
-	}
-
-	if m.tail != nil {
-		m.tail.setNext(layer)
-		layer.setPrev(m.tail)
-	}
-	m.tail = layer
+	m.container.AddLayer(layer)
 	m.head.setParent(m)
-	m.head.setContainer(m)
 }
 
 // OpenMap reads a tilemap from a file, automatically detecting it format.
@@ -538,7 +497,7 @@ func OpenMapFormat(path string, format Format, cache *Cache) (*Map, error) {
 	var err error
 	if abs, err = FindPath(path); err != nil {
 		return nil, err
-	} 
+	}
 
 	reader, _, err := getStream(abs)
 	if err != nil {
@@ -548,7 +507,7 @@ func OpenMapFormat(path string, format Format, cache *Cache) (*Map, error) {
 
 	IncludePaths = append(IncludePaths, filepath.Dir(abs))
 	defer func() { IncludePaths = IncludePaths[:len(IncludePaths)-1] }()
-	
+
 	var tilemap Map
 	tilemap.Source = abs
 	tilemap.cache = cache
@@ -560,7 +519,7 @@ func OpenMapFormat(path string, format Format, cache *Cache) (*Map, error) {
 }
 
 // ReadMap reads a tilemap from the current position in the reader.
-func ReadMap(r io.ReadSeeker, tilemap *Map) (error) {
+func ReadMap(r io.ReadSeeker, tilemap *Map) error {
 	return ReadMapFormat(r, detectReader(r), tilemap)
 }
 

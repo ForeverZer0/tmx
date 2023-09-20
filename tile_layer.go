@@ -5,11 +5,13 @@ import (
 	"fmt"
 )
 
+// TileLayer describes a map layer that is composed of tile data from a Tileset.
 type TileLayer struct {
 	baseLayer
 	TileData
 }
 
+// UnmarshalXML implements the xml.Unmarshaler interface.
 func (layer *TileLayer) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	for _, attr := range start.Attr {
 		if handled, err := layer.baseLayer.xmlAttr(attr); err != nil {

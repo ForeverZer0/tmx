@@ -38,8 +38,8 @@ var IncludePaths []string
 func FindPath(path string, base ...string) (string, error) {
 	// Check if path can be resolved as-is
 	if _, err := os.Stat(path); err == nil {
+		// If so, attempt to convert it to an absolute path if not already
 		if !filepath.IsAbs(path) {
-			// Attempt to convert it to an absolute path if not already
 			if abs, err := filepath.Abs(path); err == nil {
 				return abs, nil
 			}

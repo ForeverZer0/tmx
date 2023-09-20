@@ -1,9 +1,6 @@
 package tmx
 
-import (
-	"fmt"
-	"strconv"
-)
+import "strconv"
 
 // TileID describes the the ID of a single tile on a map.
 //
@@ -39,21 +36,39 @@ const (
 	//
 	//		var clean TileID = gid & ClearMask
 	ClearMask TileID = ^(FlipH | FlipV | FlipD | RotateCCW)
+	// InvalidID is a strongly-typed value indicating the tile is invalid,
+	// should be ignored, or a context-dependent "error" value.
+	InvalidID TileID = 0xFFFFFFFF
 )
 
-// MarshalText implements the text marshaller method.
-func (id TileID) MarshalText() ([]byte, error) {
-	return []byte(fmt.Sprint(uint32(id))), nil
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (id *TileID) UnmarshalJSON(data []byte) error {
+	text := string(data)
+	if value, err := strconv.ParseUint(text, 10, 32); err != nil {
+		if text == "-1" {
+			*id = InvalidID
+			return nil
+		}
+		return err
+	} else {
+		*id = TileID(value)
+	}
+	return nil
 }
 
-// UnmarshalText implements the text unmarshaller method.
+// Unmarshaltext implements the encoding.TextUnmarshaler interface.
 func (id *TileID) UnmarshalText(text []byte) error {
-	if value, err := strconv.ParseUint(string(text), 10, 32); err != nil {
-		*id = TileID(value)
-		return nil
-	} else {
+	str := string(text)
+	if value, err := strconv.ParseUint(str, 10, 32); err != nil {
+		if str == "-1" {
+			*id = InvalidID
+			return nil
+		}
 		return err
+	} else {
+		*id = TileID(value)
 	}
+	return nil
 }
 
 // vim: ts=4

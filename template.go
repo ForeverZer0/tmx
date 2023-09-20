@@ -5,9 +5,8 @@ type Template struct {
 	Object  `json:"object" xml:"object"`
 }
 
-type Tileset struct{}
-
 func OpenTX(path string) (*Template, error) {
+	// TODO
 	return nil, nil
 }
 

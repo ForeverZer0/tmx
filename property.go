@@ -51,7 +51,7 @@ func (p *Property) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 			}
 		case "propertytype":
 			p.Class = attr.Value
-		case "value":
+		case "value", "default":
 			switch p.Type {
 			case TypeBool:
 				if value, err := strconv.ParseBool(attr.Value); err != nil {
@@ -147,7 +147,7 @@ func (p *Property) UnmarshalJSON(data []byte) error {
 			if p.Class, err = jsonProp[string](d); err != nil {
 				return err
 			}
-		case "value":
+		case "value", "default":
 			if value, err := p.jsonValue(d, p.Type); err != nil {
 				return err
 			} else {

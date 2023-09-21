@@ -1,6 +1,7 @@
 package tmx
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -8,13 +9,21 @@ import (
 	"path/filepath"
 )
 
+// Template implements a base object to supply boilerplate to other objects that can "inherit"
+// from it. Any value that is set explicitely in the inheriting object will override the base
+// templates definition.
 type Template struct {
-	Source string `json:"-" xml:"-"`
-	Tileset *MapTileset `json:"tileset" xml:"tileset"`
-	Object  `json:"object" xml:"object"`
+	// Source is the path to the file from where the Template was loaded.
+	Source string
+	// Tileset contains the Tileset instance when the object is a Tile object.
+	Tileset *MapTileset
+	// Object is the object definition.
+	Object
+	// cache maintains a reference to the parent Map cache.
 	cache *Cache
 }
 
+// UnmarshalXML implements the xml.Unmarshaler interface.
 func (t *Template) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	token, err := d.Token()
 	for token != start.End() {
@@ -45,6 +54,48 @@ func (t *Template) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 
 		token, err = d.Token()
 	}
+	return nil
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (t *Template) UnmarshalJSON(data []byte) error {
+	d := json.NewDecoder(bytes.NewReader(data))
+	token, err := d.Token()
+	if err != nil {
+		return err
+	} else if token != json.Delim('{') {
+		return ErrExpectedObject
+	}
+
+	for {
+		if token, err = d.Token(); err != nil {
+			return err
+		} else if token == json.Delim('}') {
+			break
+		}
+
+		name := token.(string)
+		switch name {
+		case "object":
+			var obj Object
+			obj.cache = t.cache
+			if err = d.Decode(&obj); err != nil {
+				return err
+			}
+			t.Object = obj
+		case "tileset":
+			var ts MapTileset
+			ts.cache = t.cache
+			if err = d.Decode(&ts); err != nil {
+				return err
+			}
+			t.Tileset = &ts
+		default:
+			logProp(name, "template")
+			jsonSkip(d)
+		}
+	}
+
 	return nil
 }
 

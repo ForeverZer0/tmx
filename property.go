@@ -97,7 +97,18 @@ func (p *Property) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 			if child.Name.Local != "properties" {
 				logElem(child.Name.Local, start.Name.Local)
 			} else {
-				props := make(Properties)
+				var props Properties
+				// Initialize to default class if defined...
+				if CustomTypes != nil && p.Class != "" {
+					if base, ok := CustomTypes[p.Class]; ok {
+						props = base.Members.Clone()
+					}
+				}
+				// ...else just start with a blank map
+				if props == nil {
+					props = make(Properties)
+				}
+				// Default values will get overwritten if defined
 				if err = props.UnmarshalXML(d, child); err != nil {
 					return err
 				}
@@ -143,16 +154,19 @@ func (p *Property) UnmarshalJSON(data []byte) error {
 			} else {
 				p.Type = value
 			}
-		case "propertytype":
+		case "propertytype", "propertyType":
 			if p.Class, err = jsonProp[string](d); err != nil {
 				return err
 			}
 		case "value", "default":
-			if value, err := p.jsonValue(d, p.Type); err != nil {
+			if value, err := p.jsonValue(d); err != nil {
 				return err
 			} else {
 				p.Value = value
 			}
+		default:
+			logProp(name, "property")
+			jsonSkip(d)
 		}
 	}
 
@@ -160,9 +174,9 @@ func (p *Property) UnmarshalJSON(data []byte) error {
 }
 
 // jsonValue decodes a value from the current position in the stream.
-func (p Property) jsonValue(d *json.Decoder, dt DataType) (interface{}, error) {
-	if dt == TypeClass {
-		return p.jsonClass(d)
+func (p Property) jsonValue(d *json.Decoder) (interface{}, error) {
+	if p.Type == TypeClass {
+		return p.jsonClass(d, p.Class)
 	}
 
 	token, err := d.Token()
@@ -172,7 +186,7 @@ func (p Property) jsonValue(d *json.Decoder, dt DataType) (interface{}, error) {
 
 	switch value := token.(type) {
 	case float64:
-		switch dt {
+		switch p.Type {
 		case TypeInt, TypeObject:
 			return int(value), nil
 		default:
@@ -181,7 +195,7 @@ func (p Property) jsonValue(d *json.Decoder, dt DataType) (interface{}, error) {
 	case bool:
 		return value, nil
 	case string:
-		if dt == TypeColor {
+		if p.Type == TypeColor {
 			if color, err := ParseColor(value); err != nil {
 				return nil, err
 			} else {
@@ -204,17 +218,28 @@ func (p Property) jsonValue(d *json.Decoder, dt DataType) (interface{}, error) {
 // be an integer, although that was not the case.
 //
 // https://github.com/mapeditor/tiled/issues/3820
-func (p Property) jsonClass(d *json.Decoder) (Properties, error) {
-	props := make(Properties)
+func (p Property) jsonClass(d *json.Decoder, class string) (Properties, error) {
+	var props Properties
+	// Initialize to default class if defined...
+	if CustomTypes != nil && class != "" {
+		if base, ok := CustomTypes[class]; ok {
+			props = base.Members.Clone()
+		}
+	}
+	// ...else just start with a blank map
+	if props == nil {
+		props = make(Properties)
+	}
 
-	if token, err := d.Token(); err != nil {
+	token, err := d.Token()
+	if err != nil {
 		return nil, err
 	} else if token != json.Delim('{') {
 		return nil, ErrExpectedObject
 	}
 
 	for {
-		token, err := d.Token()
+		token, err = d.Token()
 		if err != nil {
 			return nil, err
 		} else if token == json.Delim('}') {
@@ -222,41 +247,57 @@ func (p Property) jsonClass(d *json.Decoder) (Properties, error) {
 		}
 
 		name := token.(string)
-		if value, err := p.jsonValue(d, -1); err != nil {
-			return nil, err
+		var prop Property
+
+		// Get value based on existing property (CustomClass)
+		if base, ok := props[name]; ok {
+			prop = base
+			if value, err := prop.jsonValue(d); err != nil {
+				return nil, err
+			} else {
+				prop.Value = value
+			}
 		} else {
-			///////////////////////////////////////////////////
-			// TODO: Load the class definition
-			var dt DataType
-			switch v := value.(type) {
+			// Get value without a known type
+			prop.Type = -1
+			prop.Value, err = prop.jsonValue(d)
+			if err != nil {
+				return nil, err
+			}
+
+			// Reasonable attempt at guessing the correct DataType
+			// based on heursitics. 
+			switch v := prop.Value.(type) {
 			case string:
 				if color, err := ParseColor(v); err == nil {
-					dt = TypeColor
-					value = color
+					prop.Type = TypeColor
+					prop.Value = color
 				} else {
-					dt = TypeString
+					prop.Type = TypeString
 				}
 			case int:
-				dt = TypeInt
+				prop.Type = TypeInt
 			case Color:
-				dt = TypeColor
+				prop.Type = TypeColor
 			case float64:
+				// Truncate float value and see if still equal to original value.
+				// If so, just assume it is an integer. This might be the correct
+				// choice for a bit over 50% of the time, maybe not, it's all guessing
+				// at this point... Hopefully this gets fixed upstream in the format.
 				if float64(int(v)) == v {
-					dt = TypeInt
-					value = int(v)
+					prop.Type = TypeInt
+					prop.Value = int(v)
 				} else {
-					dt = TypeFloat
+					prop.Type = TypeFloat
 				}
 			case bool:
-				dt = TypeBool
+				prop.Type = TypeBool
 			case Properties:
-				dt = TypeClass
-			default:
-				dt = -1
+				prop.Type = TypeClass
 			}
-			//////////////////////////////////////////////////
-			props[name] = Property{Name: name, Value: value, Type: dt}
 		}
+		
+		props[prop.Name] = prop
 	}
 
 	return props, nil

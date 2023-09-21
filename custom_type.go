@@ -20,7 +20,7 @@ import (
 // or a color).
 //
 // XML does not suffer this this same problem, as it includes the property type
-// within the normal property definition.
+// within its definition.
 //
 // [JSON format]: https://github.com/mapeditor/tiled/issues/3820
 var CustomTypes map[string]*CustomClass
@@ -34,6 +34,12 @@ type CustomClass struct {
 	Members Properties
 }
 
+// LoadTypes loads custom property types from file, and adds them to the CustomTypes
+// map, making them available when parsing Property values.
+//
+// These are not a hard requirement for parsing properties with custom types, but it can
+// provide hints to the parser for determining the correct data type of a value,
+// specifically with JSON formatted documents that completely omit it.
 func LoadTypes(path string) error {
 	if CustomTypes == nil {
 		CustomTypes = make(map[string]*CustomClass)
@@ -61,9 +67,6 @@ func LoadTypes(path string) error {
 		if err := d.Decode(&result); err != nil {
 			return err
 		}
-		for _, class := range result.Types {
-			CustomTypes[class.Name] = class
-		}
 	case FormatJSON:
 		d := json.NewDecoder(file)
 		if token, err := d.Token(); err != nil {
@@ -77,9 +80,6 @@ func LoadTypes(path string) error {
 			if err = d.Decode(&prop); err != nil {
 				return err
 			}
-			if len(prop.Members) > 0 {
-				CustomTypes[prop.Name] = &prop
-			}
 		}
 	default:
 		return errInvalidEnum("Format", fmt.Sprintf("Format(%d)", format))
@@ -88,7 +88,8 @@ func LoadTypes(path string) error {
 	return nil
 }
 
-// NewClass initializes and returns a new custom class with the specified name.
+// NewClass initializes, registeres as a known type, and returns a new
+// custom class with the specified name.
 //
 // Custom classes define the structure of user-defined Property types, providing
 // their data type, default value, etc.
@@ -162,7 +163,9 @@ func (c *CustomClass) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 	if CustomTypes == nil {
 		CustomTypes = make(map[string]*CustomClass)
 	}
-	CustomTypes[c.Name] = c
+	if len(c.Members) > 0 {
+		CustomTypes[c.Name] = c
+	}
 	return nil
 }
 
@@ -219,7 +222,9 @@ func (c *CustomClass) UnmarshalJSON(data []byte) error {
 	if CustomTypes == nil {
 		CustomTypes = make(map[string]*CustomClass)
 	}
-	CustomTypes[c.Name] = c	
+	if len(c.Members) > 0 {
+		CustomTypes[c.Name] = c
+	}
 	return nil
 }
 

@@ -66,6 +66,15 @@ func logProp(name, parent string) {
 	log.Printf(`skipped unrecognized child property in "%s" in "%s"`, name, parent)
 }
 
+var terrainWarn bool
+
+func logTerrain() {
+	if !terrainWarn {
+		log.Println("use of terrains is deprecated, and has been replaced by wangsets")
+		terrainWarn = true
+	}
+}
+
 // jsonProp reads JSON value of the given type.
 func jsonProp[T any](d *json.Decoder) (value T, err error) {
 	var token json.Token

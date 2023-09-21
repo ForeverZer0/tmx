@@ -1,10 +1,11 @@
 package tmx
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
-	"log"
 	"strconv"
+	"strings"
 )
 
 // Tile defines a single tile in a Tileset.
@@ -27,6 +28,8 @@ type Tile struct {
 	// Collision contains the map objects that define collision information for the tile, or nil
 	// when none is defined.
 	Collision *Collision
+	// Deprecated: Terrain has been replaced by WangSets
+	Terrain []int
 	// cache is a resource cache that maintains references to shared objects.
 	cache *Cache
 }
@@ -74,7 +77,14 @@ func (t *Tile) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				return err
 			}
 		case "terrain":
-			log.Println("terrains are no longer supported, and are replaced by wangsets")
+			logTerrain()
+			for _, str := range strings.Split(attr.Value, ",") {
+				if value, err := strconv.Atoi(strings.Trim(str, " ")); err != nil {
+					return err
+				} else {
+					t.Terrain = append(t.Terrain, value)
+				}
+			}
 		default:
 			logAttr(attr.Name.Local, start.Name.Local)
 		}
@@ -123,38 +133,130 @@ func (t *Tile) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (t *Tile) UnmarshalJSON(data []byte) error {
-	type jsonTile struct {
-		ID          TileID     `json:"id"`
-		Class       string     `json:"type"`
-		X           int        `json:"x"`
-		Y           int        `json:"y"`
-		Width       int        `json:"width"`
-		Height      int        `json:"height"`
-		Animation   []Frame    `json:"animation"`
-		Image       string     `json:"image"`
-		ImageHeight int        `json:"imageheight"`
-		ImageWidth  int        `json:"imagewidth"`
-		Collision   *Collision `json:"objectgroup"` // TODO
-		Probability float64    `json:"probability"`
-		Properties  Properties `json:"properties"`
-		// Terrain     []int      `json:"terrain"`
+	d := json.NewDecoder(bytes.NewBuffer(data))
+	token, err := d.Token()
+	if err != nil {
+		return err 
+	} else if token != json.Delim('{') {
+		return ErrExpectedObject
 	}
 
-	var temp jsonTile
-	if err := json.Unmarshal(data, &temp); err != nil {
-		return err
+	for {
+		if token, err = d.Token(); err != nil {
+			return err
+		} else if token == json.Delim('}') {
+			break
+		}
+
+		name := token.(string)
+		switch name {
+		case "id":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				t.ID = TileID(value)
+			}
+		case "type":
+			if t.Class, err = jsonProp[string](d); err != nil {
+				return err
+			}
+		case "x":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				t.X = int(value)
+			}
+		case "y":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				t.Y = int(value)
+			}
+		case "width":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				t.Width = int(value)
+			}
+		case "height":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				t.Height = int(value)
+			}
+		case "animation":
+			var frames []Frame
+			if err := d.Decode(&frames); err != nil {
+				return err
+			} else {
+				t.Animation = frames
+			}
+		case "image":
+			if value, err := jsonProp[string](d); err != nil {
+				return err
+			} else {
+				if t.Image == nil {
+					t.Image = &Image{}
+				}
+				t.Image.Source = value
+			}
+		case "imagewidth":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				if t.Image == nil {
+					t.Image = &Image{}
+				}
+				t.Image.Size.Width = int(value)
+			}
+		case "imageheight":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				if t.Image == nil {
+					t.Image = &Image{}
+				}
+				t.Image.Size.Height = int(value)
+			}
+		case "objectgroup":
+			var collision Collision
+			if err = d.Decode(&collision); err != nil {
+				return err
+			}
+			t.Collision = &collision
+		case "probability":
+			if t.Probability, err = jsonProp[float64](d); err != nil {
+				return err
+			} 
+		case "properties":
+			props := make(Properties)
+			if err = d.Decode(&props); err != nil {
+				return err
+			}
+			t.Properties = props
+		case "terrain":
+			logTerrain()
+			if token, err = d.Token(); err != nil {
+				return err
+			} else if token != json.Delim('[') {
+				return ErrExpectedArray
+			}
+			for d.More() {
+				if value, ok := token.(float64); ok {
+					t.Terrain = append(t.Terrain, int(value))
+				} else {
+					return errFormat("expected number type")
+				}
+			}
+			// Position to next token ']'
+			if token, err = d.Token(); err != nil {
+				return err
+			}	
+		default:
+			logProp(name, "tile")
+			jsonSkip(d)
+		}
 	}
-
-	t.ID = temp.ID
-	t.Class = temp.Class
-	t.Rect = Rect{Point{X: temp.X, Y: temp.Y}, Size{Width: temp.Width, Height: temp.Height}}
-	t.Animation = temp.Animation
-	t.Image = &Image{Source: temp.Image, Size: Size{Width: temp.ImageWidth, Height: temp.ImageHeight}}
-	t.Probability = temp.Probability
-	t.Collision = temp.Collision
-	t.Properties = temp.Properties
-
-	// TODO: Terrain
 
 	return nil
 }

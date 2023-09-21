@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io"
 	"log"
 	"path/filepath"
 	"strconv"
@@ -60,6 +59,8 @@ type Tileset struct {
 	Tiles []Tile
 	// WangSets is a collection of WangSet objects.
 	WangSets []WangSet
+	// Deprecated: Use WangSets
+	Terrains []int
 	// Properties contain arbitrary key-value pairs of data to associate with the object.
 	Properties
 	// Grid is used for isometric orientation, and determines how tile overlays for terrain and
@@ -72,6 +73,20 @@ type Tileset struct {
 	// Tiled editor. Defaults to full transparency, and is typically of little relevance in
 	// regards to tilemap rendering.
 	BackgroundColor Color
+	// cache is a resource cache that maintains references to shared objects.
+	cache *Cache
+}
+
+// MapTileset describes the source tiles/graphics used by tilemaps.
+type MapTileset struct {
+	// FirstGID is the first global tile ID of this tileset (this global ID maps to the first
+	// tile in this tileset).
+	FirstGID TileID
+	// Map is the parent tilemap this tileset is being used in.
+	Map *Map
+	// Tileset is the actual tileset implementation, and is unbound by the map-specific fields,
+	// allowing it to be cached and reused with different maps.
+	*Tileset
 	// cache is a resource cache that maintains references to shared objects.
 	cache *Cache
 }
@@ -227,36 +242,8 @@ func (ts *Tileset) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 		token, err = d.Token()
 	}
 
-	// TODO
-	for i, tile := range ts.Tiles {
-
-		if tile.Width == 0 {
-			ts.Tiles[i].Width = ts.TileSize.Width
-		}
-		if tile.Height == 0 {
-			ts.Tiles[i].Height = ts.TileSize.Height
-		}
-
-		x := int(tile.ID) % ts.Columns
-		y := int(tile.ID) / ts.Columns
-		ts.Tiles[i].Point = Point{X: x, Y: y}
-	}
-
+	ts.postProcess()
 	return nil
-}
-
-// MapTileset describes the source tiles/graphics used by tilemaps.
-type MapTileset struct {
-	// FirstGID is the first global tile ID of this tileset (this global ID maps to the first
-	// tile in this tileset).
-	FirstGID TileID
-	// Map is the parent tilemap this tileset is being used in.
-	Map *Map
-	// Tileset is the actual tileset implementation, and is unbound by the map-specific fields,
-	// allowing it to be cached and reused with different maps.
-	*Tileset
-	// cache is a resource cache that maintains references to shared objects.
-	cache *Cache
 }
 
 // UnmarshalXML implements the xml.Unmarshaler interface.
@@ -287,10 +274,21 @@ func (ts *MapTileset) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 		}
 		ts.Tileset = &impl
 	} else {
-		if impl, err := OpenTileset(source, ts.cache); err == nil {
+		if impl, err := OpenTileset(source, DetectExt(source), ts.cache); err == nil {
 			ts.Tileset = impl
 		} else {
 			return err
+		}
+	}
+
+	// Ensure the element is fully consumed
+	token, err := d.Token()
+	for token != start.End() {
+		if err != nil {
+			return err
+		}
+		if child, ok := token.(xml.StartElement); ok {
+			logElem(child.Name.Local, start.Name.Local)
 		}
 	}
 
@@ -316,7 +314,7 @@ func (ts *MapTileset) UnmarshalJSON(data []byte) error {
 		}
 		ts.Tileset = &tileset
 	} else {
-		if tileset, err := OpenTileset(temp.Source, ts.cache); err != nil {
+		if tileset, err := OpenTileset(temp.Source, DetectExt(temp.Source), ts.cache); err != nil {
 			return err
 		} else {
 			ts.Tileset = tileset
@@ -397,22 +395,31 @@ func (ts *Tileset) UnmarshalJSON(data []byte) error {
 
 	// Terrains         []int            `json:"terrains"`
 
+	ts.postProcess()
 	return nil
 }
 
-// OpenMap reads a tilemap from a file, automatically detecting it format.
-//
-// An optional cache can be supplied that maintains references to tilesets and
-// templates to prevent frequent re-processing of them.
-func OpenTileset(path string, cache *Cache) (*Tileset, error) {
-	return OpenTilesetFormat(path, detectFileExt(path), cache)
+func (ts *Tileset) postProcess() {
+	for i, tile := range ts.Tiles {
+
+		if tile.Width == 0 {
+			ts.Tiles[i].Width = ts.TileSize.Width
+		}
+		if tile.Height == 0 {
+			ts.Tiles[i].Height = ts.TileSize.Height
+		}
+
+		x := int(tile.ID) % ts.Columns
+		y := int(tile.ID) / ts.Columns
+		ts.Tiles[i].Point = Point{X: x, Y: y}
+	}
 }
 
-// OpenMapFormat reads a tilemap from a file, using the specified format.
+// OpenTileset reads a tileset from a file, using the specified format.
 //
 // An optional cache can be supplied that maintains references to tilesets and
 // templates to prevent frequent re-processing of them.
-func OpenTilesetFormat(path string, format Format, cache *Cache) (*Tileset, error) {
+func OpenTileset(path string, format Format, cache *Cache) (*Tileset, error) {
 	var abs string
 	var err error
 	if abs, err = FindPath(path); err != nil {
@@ -437,9 +444,9 @@ func OpenTilesetFormat(path string, format Format, cache *Cache) (*Tileset, erro
 
 	var tileset Tileset
 	tileset.Source = abs
-	// tileset.cache = cache
+	tileset.cache = cache
 
-	if err := ReadTilesetFormat(reader, format, &tileset); err != nil {
+	if err := Decode(reader, format, &tileset); err != nil {
 		return nil, err
 	}
 
@@ -447,32 +454,6 @@ func OpenTilesetFormat(path string, format Format, cache *Cache) (*Tileset, erro
 		cache.AddTileset(abs, &tileset)
 	}
 	return &tileset, nil
-}
-
-// ReadMap reads a tilemap from the current position in the reader.
-func ReadTileset(r io.ReadSeeker, tileset *Tileset) error {
-	return ReadTilesetFormat(r, detectReader(r), tileset)
-}
-
-// ReadMapFormat reads a tilemap from the current position in the reader using
-// the specified format.
-func ReadTilesetFormat(r io.Reader, format Format, tileset *Tileset) error {
-	switch format {
-	case FormatXML:
-		d := xml.NewDecoder(r)
-		if err := d.Decode(tileset); err != nil {
-			return err
-		}
-	case FormatJSON:
-		d := json.NewDecoder(r)
-		if err := d.Decode(tileset); err != nil {
-			return err
-		}
-	default:
-		return errInvalidEnum("Format", fmt.Sprintf("Format(%d)", format))
-	}
-
-	return nil
 }
 
 // vim: ts=4

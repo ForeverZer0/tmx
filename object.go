@@ -121,7 +121,7 @@ func (obj *Object) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				return err
 			}
 		case "template":
-			if tmpl, err := OpenTemplate(attr.Value, obj.cache); err == nil {
+			if tmpl, err := OpenTemplate(attr.Value, DetectExt(attr.Value), obj.cache); err == nil {
 				obj.Template = tmpl
 			} else {
 				return err
@@ -280,7 +280,8 @@ func (obj *Object) UnmarshalJSON(data []byte) error {
 			obj.Visible = token.(bool)
 			obj.flags |= flagVisible
 		case "template":
-			if tmpl, err := OpenTemplate(token.(string), obj.cache); err == nil {
+			source := token.(string)
+			if tmpl, err := OpenTemplate(source, DetectExt(source), obj.cache); err == nil {
 				obj.Template = tmpl
 			} else {
 				return err

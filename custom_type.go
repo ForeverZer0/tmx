@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// CustomTypes maintains references to all known user-defined types.
+// KnownTypes maintains references to all known user-defined types.
 //
 // As the [JSON format] does not include this information in its output, the
 // class definition is required to have been added/loaded prior to implementing
@@ -23,7 +23,7 @@ import (
 // within its definition.
 //
 // [JSON format]: https://github.com/mapeditor/tiled/issues/3820
-var CustomTypes map[string]*CustomClass
+var KnownTypes map[string]*CustomClass
 
 // CustomClass is a type used to define custom property types.
 type CustomClass struct {
@@ -34,15 +34,15 @@ type CustomClass struct {
 	Members Properties
 }
 
-// LoadTypes loads custom property types from file, and adds them to the CustomTypes
+// LoadTypes loads custom property types from file, and adds them to the KnownTypes
 // map, making them available when parsing Property values.
 //
-// These are not a hard requirement for parsing properties with custom types, but it can
-// provide hints to the parser for determining the correct data type of a value,
-// specifically with JSON formatted documents that completely omit it.
+// While these are not hard requirements for loading custom properties, they are needed
+// for proper type hinting (JSON format only) and setting of default values that may not
+// be part of the document.
 func LoadTypes(path string) error {
-	if CustomTypes == nil {
-		CustomTypes = make(map[string]*CustomClass)
+	if KnownTypes == nil {
+		KnownTypes = make(map[string]*CustomClass)
 	}
 
 	abs, err := FindPath(path)
@@ -56,7 +56,7 @@ func LoadTypes(path string) error {
 	} 
 	defer file.Close()
 
-	format := detectFileExt(abs)
+	format := DetectExt(abs)
 	switch format {
 	case FormatXML:
 		type x struct {
@@ -99,10 +99,10 @@ func NewClass(name string) *CustomClass {
 		Members: make(Properties),
 	}
 
-	if CustomTypes == nil {
-		CustomTypes = make(map[string]*CustomClass)
+	if KnownTypes == nil {
+		KnownTypes = make(map[string]*CustomClass)
 	}
-	CustomTypes[name] = class
+	KnownTypes[name] = class
 	return class
 }
 
@@ -160,11 +160,11 @@ func (c *CustomClass) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 		token, err = d.Token()
 	}
 
-	if CustomTypes == nil {
-		CustomTypes = make(map[string]*CustomClass)
+	if KnownTypes == nil {
+		KnownTypes = make(map[string]*CustomClass)
 	}
 	if len(c.Members) > 0 {
-		CustomTypes[c.Name] = c
+		KnownTypes[c.Name] = c
 	}
 	return nil
 }
@@ -219,11 +219,11 @@ func (c *CustomClass) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	if CustomTypes == nil {
-		CustomTypes = make(map[string]*CustomClass)
+	if KnownTypes == nil {
+		KnownTypes = make(map[string]*CustomClass)
 	}
 	if len(c.Members) > 0 {
-		CustomTypes[c.Name] = c
+		KnownTypes[c.Name] = c
 	}
 	return nil
 }

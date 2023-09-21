@@ -343,6 +343,7 @@ func (j *jsonLayer) toLayer() Layer {
 	switch j.Type {
 	case LayerTile:
 		impl := TileLayer{TileData: j.Data}
+		impl.calcChunks()
 		base = &impl.baseLayer
 		layer = &impl
 	case LayerImage:

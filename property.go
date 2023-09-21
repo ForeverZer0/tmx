@@ -99,8 +99,8 @@ func (p *Property) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 			} else {
 				var props Properties
 				// Initialize to default class if defined...
-				if CustomTypes != nil && p.Class != "" {
-					if base, ok := CustomTypes[p.Class]; ok {
+				if KnownTypes != nil && p.Class != "" {
+					if base, ok := KnownTypes[p.Class]; ok {
 						props = base.Members.Clone()
 					}
 				}
@@ -221,8 +221,8 @@ func (p Property) jsonValue(d *json.Decoder) (interface{}, error) {
 func (p Property) jsonClass(d *json.Decoder, class string) (Properties, error) {
 	var props Properties
 	// Initialize to default class if defined...
-	if CustomTypes != nil && class != "" {
-		if base, ok := CustomTypes[class]; ok {
+	if KnownTypes != nil && class != "" {
+		if base, ok := KnownTypes[class]; ok {
 			props = base.Members.Clone()
 		}
 	}

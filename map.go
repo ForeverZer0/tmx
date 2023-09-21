@@ -437,33 +437,34 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// AddTileset appends a new tilset to the map.
-func (m *Map) AddTileset(ts *Tileset, first TileID) {
-	value := MapTileset{Tileset: ts, FirstGID: first}
-	m.Tilesets = append(m.Tilesets, &value)
-}
-
 // AddLayer appends a new layer to the map.
 func (m *Map) AddLayer(layer Layer) {
 	m.container.AddLayer(layer)
 	m.head.setParent(m)
 }
 
-// OpenMap reads a tilemap from a file, automatically detecting it format.
+// Tileset returns the child Tileset and local ID from the given global tile ID.
+// The returned ID will have its flip/rotate flags removed, and can be used to
+// index into the tiles.
 //
-// An optional cache can be supplied that maintains references to tilesets and
-// templates to prevent frequent re-processing of them. When nil, an internal
-// cache will be used that only exists for the lifetime of the map.
-func OpenMap(path string, cache *Cache) (*Map, error) {
-	return OpenMapFormat(path, detectFileExt(path), cache)
+// Returns zero values when the given GID is invalid for this map.
+func (m *Map) Tileset(gid TileID) (*Tileset, TileID) {
+	clean := gid & ClearMask
+	for i := len(m.Tilesets)-1; i >= 0; i-- {
+		ts := m.Tilesets[i]
+		if ts.FirstGID <= clean {
+			return ts.Tileset, clean - ts.FirstGID
+		}
+	}
+	return nil, 0
 }
 
-// OpenMapFormat reads a tilemap from a file, using the specified format.
+// OpenMap reads a tilemap from a file, using the specified format.
 //
 // An optional cache can be supplied that maintains references to tilesets and
 // templates to prevent frequent re-processing of them. When nil, an internal
 // cache will be used that only exists for the lifetime of the map.
-func OpenMapFormat(path string, format Format, cache *Cache) (*Map, error) {
+func OpenMap(path string, format Format, cache *Cache) (*Map, error) {
 	var abs string
 	var err error
 	if abs, err = FindPath(path); err != nil {
@@ -483,36 +484,10 @@ func OpenMapFormat(path string, format Format, cache *Cache) (*Map, error) {
 	tilemap.Source = abs
 	tilemap.cache = cache
 
-	if err = ReadMapFormat(reader, format, &tilemap); err != nil {
+	if err = Decode(reader, format, &tilemap); err != nil {
 		return nil, err
 	}
 	return &tilemap, nil
-}
-
-// ReadMap reads a tilemap from the current position in the reader.
-func ReadMap(r io.ReadSeeker, tilemap *Map) error {
-	return ReadMapFormat(r, detectReader(r), tilemap)
-}
-
-// ReadMapFormat reads a tilemap from the current position in the reader using
-// the specified format.
-func ReadMapFormat(r io.Reader, format Format, tilemap *Map) error {
-	switch format {
-	case FormatXML:
-		d := xml.NewDecoder(r)
-		if err := d.Decode(tilemap); err != nil {
-			return err
-		}
-	case FormatJSON:
-		d := json.NewDecoder(r)
-		if err := d.Decode(tilemap); err != nil {
-			return err
-		}
-	default:
-		return errInvalidEnum("Format", fmt.Sprintf("Format(%d)", format))
-	}
-
-	return nil
 }
 
 // vim: ts=4

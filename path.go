@@ -15,6 +15,8 @@ import (
 // Because it expects a reader returned and not a path, this doubles as a way to implement a
 // "virtual" filesystem, where the path need not even exist on disk, such as files being embedded
 // into the binary as an internal resource.
+//
+// Any non-nil instance that is returned will be closed automatically by the library.
 var PathResolve func(path string) (io.ReadCloser, Format, error)
 
 // IncludePaths contains paths to directories that will be searched when resolving relative
@@ -76,9 +78,9 @@ func FindPath(path string, base ...string) (string, error) {
 	return path, fmt.Errorf(`%w: "%s"`, os.ErrNotExist, path)
 }
 
-// detectFileExt attempts to determine the format based on its file extension, falling back
-// and attempting to use the file contents if it exists.
-func detectFileExt(path string) Format {
+// DetectExt attempts to determine the format based on its file extension, falling back
+// and attempting to use the file contents when locatable on disk.
+func DetectExt(path string) Format {
 	ext := strings.ToLower(filepath.Ext(path))
 
 	// Determine by file extension
@@ -92,16 +94,18 @@ func detectFileExt(path string) Format {
 	}
 	
 	// Fallback to detecting by file contents
-	if file, err := os.Open(path); err != nil {
+	if abs, err := FindPath(path); err != nil {
+		return FormatUnknown
+	} else if file, err := os.Open(abs); err != nil {
 		return FormatUnknown
 	} else {
 		defer file.Close()
-		return detectReader(file)
+		return DetectContents(file)
 	}
 }
 
-// detectReader attempted to determine the format based on the text contents.
-func detectReader(reader io.ReadSeeker) Format {
+// DetectContents attempted to determine the format based on the text contents.
+func DetectContents(reader io.ReadSeeker) Format {
 	// Record the current position
 	pos, err := reader.Seek(0, io.SeekCurrent)
 	if err != nil {
@@ -111,7 +115,7 @@ func detectReader(reader io.ReadSeeker) Format {
 
 	// Scan characters until a '<', '{', or '[' is encountered
 	r := bufio.NewReader(reader)
-	for c, _, err := r.ReadRune(); err == nil; c, _, err = r.ReadRune() {	
+	for c, _, err := r.ReadRune(); err == nil; c, _, err = r.ReadRune() {
 		switch c {
 		case '<':
 			return FormatXML
@@ -123,12 +127,12 @@ func detectReader(reader io.ReadSeeker) Format {
 	return FormatUnknown
 }
 
-// getStream finds the given path, returning a reader object, its resolved path, and 
+// getStream finds the given path, returning a reader object, its resolved path, and
 // detected TMX format.
 func getStream(abs string) (reader io.ReadCloser, ft Format, err error) {
-	if reader, err = os.Open(abs); err == nil {		
-		ft = detectFileExt(abs)
-		return	
+	if reader, err = os.Open(abs); err == nil {
+		ft = DetectExt(abs)
+		return
 	} else if PathResolve != nil {
 		reader, ft, err = PathResolve(abs)
 	}

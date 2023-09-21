@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 )
 
-// Template implements a base object to supply boilerplate to other objects that can "inherit"
+// Template implements a base object to supply boilerplate for other objects that can "inherit"
 // from it. Any value that is set explicitely in the inheriting object will override the base
-// templates definition.
+// template's definition for that object.
 type Template struct {
 	// Source is the path to the file from where the Template was loaded.
 	Source string

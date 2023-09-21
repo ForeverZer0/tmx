@@ -8,6 +8,8 @@ type Cache struct {
 }
 
 // NewCache initializes and returns a new Cache.
+//
+// This function is required to create a valid instance.
 func NewCache() *Cache {
 	return &Cache{
 		tilesets:  make(map[string]*Tileset),

@@ -257,7 +257,7 @@ func (m *Map) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 
 	return nil
 }
- 
+
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (m *Map) UnmarshalJSON(data []byte) error {
 	m.initDefault()
@@ -399,11 +399,11 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 				return ErrExpectedArray
 			}
 			for d.More() {
-				var layer jsonLayer
-				if err = d.Decode(&layer); err != nil {
+				if layer, err := jsonLayer(d, m.cache); err != nil {
 					return err
+				} else {
+					m.AddLayer(layer)
 				}
-				m.AddLayer(layer.toLayer())
 			}
 			// Position to next token ']'
 			if token, err = d.Token(); err != nil {
@@ -450,7 +450,7 @@ func (m *Map) AddLayer(layer Layer) {
 // Returns zero values when the given GID is invalid for this map.
 func (m *Map) Tileset(gid TileID) (*Tileset, TileID) {
 	clean := gid & ClearMask
-	for i := len(m.Tilesets)-1; i >= 0; i-- {
+	for i := len(m.Tilesets) - 1; i >= 0; i-- {
 		ts := m.Tilesets[i]
 		if ts.FirstGID <= clean {
 			return ts.Tileset, clean - ts.FirstGID

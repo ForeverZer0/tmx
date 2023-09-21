@@ -43,8 +43,14 @@ type Object struct {
 	// from a template object, as it would otherwise be impossible to determine if a value of
 	// 0, false, "", etc. should be inherited, or it is merely a default.
 	flags setFlags
-	
+	// cache is a reference to the parent map's Cache.
 	cache *Cache
+}
+
+
+// String implements the Stringer interface.
+func (obj *Object) String() string {
+	return fmt.Sprintf(`Object("%s")`, obj.Name)
 }
 
 // UnmarshalXML implements the xml.Unmarshaler interface.
@@ -179,6 +185,7 @@ func (obj *Object) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	return nil
 }
 
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (obj *Object) UnmarshalJSON(data []byte) error {
 	buffer := bytes.NewReader(data)
 	d := json.NewDecoder(buffer)

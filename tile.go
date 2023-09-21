@@ -21,7 +21,8 @@ type Tile struct {
 	// Probability is the percentage indicating the probability that this tile is chosen when
 	// it competes with others while editing with the terrain tool. (defaults to 0.0)
 	Probability float64
-	// Image is the optional image associated with this tile.
+	// Image is the optional image associated with this tile for image-based tilesets. For
+	// tile-based tilesets, the source image is defined in the parent Tileset.
 	Image *Image
 	// Animation contains frames defining timings and tile IDs to produce an animation.
 	Animation []Frame

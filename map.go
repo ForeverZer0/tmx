@@ -8,6 +8,7 @@ import (
 	"io"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 // Map is the top-level object defining a complete tilemap, composed of tilesets, layers, and
@@ -60,6 +61,16 @@ type Map struct {
 	container
 
 	cache *Cache
+}
+
+// String implements the Stringer interface.
+func (m *Map) String() string {
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "Map: %dx%d", m.Size.Width, m.Size.Height)
+	if m.Source != "" {
+		fmt.Fprintf(&sb, " (%s)", filepath.Base(m.Source))
+	}
+	return sb.String()
 }
 
 func (m *Map) initDefault() {

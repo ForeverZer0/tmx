@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"strconv"
 )
 
@@ -42,21 +43,16 @@ type jsonLayer struct {
 	Name       string     `json:"name"`
 	Class      string     `json:"class"`
 	Type       LayerType  `json:"type"`
-	Offset    Vec2    `json:"offsetx"`
-	Parallax  Vec2    `json:"parallaxy"`
+	Offset     Vec2       `json:"offsetx"`
+	Parallax   Vec2       `json:"parallaxy"`
 	Opacity    float32    `json:"opacity"`
-	Start     Point        `json:"startx"`
+	Start      Point      `json:"startx"`
 	TintColor  Color      `json:"tintcolor"`
 	Visible    bool       `json:"visible"`
 	Properties Properties `json:"properties"`
 
-	Data TileData 
-
-	// // Tile layer only
-	// Chunks      []Chunk     `json:"chunks"`
-	// Compression Compression `json:"compression"`
-	// Encoding    Encoding    `json:"encoding"`
-	// Data        []byte      `json:"data"`
+	// Tile layer only
+	Data TileData
 
 	// Image layer only
 	TransparentColor Color  `json:"transparentcolor"`
@@ -77,7 +73,7 @@ type jsonLayer struct {
 func (l *jsonLayer) UnmarshalJSON(data []byte) error {
 	l.Opacity = 1.0
 	l.Visible = true
-	
+
 	d := json.NewDecoder(bytes.NewReader(data))
 	token, err := d.Token()
 	if err != nil {
@@ -85,7 +81,7 @@ func (l *jsonLayer) UnmarshalJSON(data []byte) error {
 	} else if token != json.Delim('{') {
 		return ErrExpectedObject
 	}
-	
+
 	for {
 		if token, err = d.Token(); err != nil {
 			return err
@@ -329,7 +325,7 @@ func (l *jsonLayer) UnmarshalJSON(data []byte) error {
 			jsonSkip(d)
 		}
 	}
-	
+
 	if l.Type == LayerTile {
 		return l.Data.postProcess(l.Width * l.Height)
 	}
@@ -338,9 +334,8 @@ func (l *jsonLayer) UnmarshalJSON(data []byte) error {
 }
 
 func (j *jsonLayer) toLayer() Layer {
-
 	// TODO: StartX, StartY? The are documented, but no setting in Tiled uses them, nor are they
-	// ever actually present(?) 
+	// ever actually present(?)
 
 	var base *baseLayer
 	var layer Layer
@@ -355,7 +350,7 @@ func (j *jsonLayer) toLayer() Layer {
 		layer = &impl
 		base = &impl.baseLayer
 		impl.Image = &Image{
-			Source: j.Image,
+			Source:       j.Image,
 			Transparency: j.TransparentColor,
 		}
 		impl.RepeatX = j.RepeatX
@@ -373,13 +368,13 @@ func (j *jsonLayer) toLayer() Layer {
 		for i := range j.Layers {
 			child := j.Layers[i].toLayer()
 			impl.AddLayer(child)
-		}	
+		}
 	}
 
 	base.ID = j.ID
 	base.Name = j.Name
 	base.Class = j.Class
-	base.layerType = j.Type 
+	base.layerType = j.Type
 	base.Offset = j.Offset
 	base.Parallax = j.Parallax
 	base.Opacity = j.Opacity
@@ -428,6 +423,11 @@ type baseLayer struct {
 	prev Layer
 	// cache is a reference to the parent map's Cache.
 	cache *Cache
+}
+
+// String implements the Stringer interface.
+func (l *baseLayer) String() string {
+	return fmt.Sprintf(`Tileset("%s")`, l.Name)
 }
 
 // xmlAttr attempts to process the given attribute into the base layer type, returning whether

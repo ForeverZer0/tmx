@@ -76,6 +76,11 @@ type Tileset struct {
 	cache *Cache
 }
 
+// String implements the Stringer interface.
+func (ts *Tileset) String() string {
+	return fmt.Sprintf(`Tileset("%s")`, ts.Name)
+}
+
 // UnmarshalXML implements the xml.Unmarshaler interface.
 func (ts *Tileset) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	for _, attr := range start.Attr {

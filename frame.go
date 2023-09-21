@@ -19,7 +19,7 @@ type tmxFrame struct {
 
 // Frame describes a single frame within an animation.
 type Frame struct {
-	tmxFrame // unexported
+	tmxFrame // unexported field, used for deserialization
 }
 
 // UnmarshalXML implements the xml.Unmarshaler interface.

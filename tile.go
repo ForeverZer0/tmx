@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"strconv"
-	"strings"
 )
 
 // Tile defines a single tile in a Tileset.
@@ -29,8 +28,14 @@ type Tile struct {
 	// Collision contains the map objects that define collision information for the tile, or nil
 	// when none is defined.
 	Collision *Collision
-	// Deprecated: Terrain has been replaced by WangSets
-	Terrain []int
+	// UV0 is the first texture coordinate for the tile.
+	//
+	// Initially calculated based on the image (or parent Tileset image) size.
+	UV0 Vec2
+	// UV1 is the second texture coordinate for the tile.
+	//
+	// Initially calculated based on the image (or parent Tileset image) size.
+	UV1 Vec2
 	// Tileset is a reference to the parent tilset.
 	Tileset *Tileset
 }
@@ -79,13 +84,6 @@ func (t *Tile) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 			}
 		case "terrain":
 			logTerrain()
-			for _, str := range strings.Split(attr.Value, ",") {
-				if value, err := strconv.Atoi(strings.Trim(str, " ")); err != nil {
-					return err
-				} else {
-					t.Terrain = append(t.Terrain, value)
-				}
-			}
 		default:
 			logAttr(attr.Name.Local, start.Name.Local)
 		}
@@ -137,7 +135,7 @@ func (t *Tile) UnmarshalJSON(data []byte) error {
 	d := json.NewDecoder(bytes.NewBuffer(data))
 	token, err := d.Token()
 	if err != nil {
-		return err 
+		return err
 	} else if token != json.Delim('{') {
 		return ErrExpectedObject
 	}
@@ -208,7 +206,7 @@ func (t *Tile) UnmarshalJSON(data []byte) error {
 				if t.Image == nil {
 					t.Image = &Image{}
 				}
-				t.Image.Size.Width = int(value)
+				t.Image.Width = int(value)
 			}
 		case "imageheight":
 			if value, err := jsonProp[float64](d); err != nil {
@@ -217,7 +215,7 @@ func (t *Tile) UnmarshalJSON(data []byte) error {
 				if t.Image == nil {
 					t.Image = &Image{}
 				}
-				t.Image.Size.Height = int(value)
+				t.Image.Height = int(value)
 			}
 		case "objectgroup":
 			var collision Collision
@@ -228,7 +226,7 @@ func (t *Tile) UnmarshalJSON(data []byte) error {
 		case "probability":
 			if t.Probability, err = jsonProp[float64](d); err != nil {
 				return err
-			} 
+			}
 		case "properties":
 			props := make(Properties)
 			if err = d.Decode(&props); err != nil {
@@ -237,22 +235,7 @@ func (t *Tile) UnmarshalJSON(data []byte) error {
 			t.Properties = props
 		case "terrain":
 			logTerrain()
-			if token, err = d.Token(); err != nil {
-				return err
-			} else if token != json.Delim('[') {
-				return ErrExpectedArray
-			}
-			for d.More() {
-				if value, ok := token.(float64); ok {
-					t.Terrain = append(t.Terrain, int(value))
-				} else {
-					return errFormat("expected number type")
-				}
-			}
-			// Position to next token ']'
-			if token, err = d.Token(); err != nil {
-				return err
-			}	
+			jsonSkip(d)
 		default:
 			logProp(name, "tile")
 			jsonSkip(d)

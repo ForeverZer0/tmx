@@ -10,8 +10,15 @@ import (
 	"strconv"
 )
 
-// Tileset is a the core tileset implementation that contains no map-specific fields, such
-// FirstGID, parent Map, etc.
+// BottomLeftOrigin is a global configuration specifically for generating UV coordinates
+// in Tile objects.
+//
+// By default, the origin (0,0) is the top-left corner, with y increasing as it moves down,
+// which is the most common for 2D graphics. When set to true, UV coordinates will be
+// calculated using the origin at the bottom-left, with y increasing as it moves up.
+var BottomLeftOrigin bool
+
+// Tileset is a the core tileset implementation, unbound to any specific map.
 type Tileset struct {
 	// Source is the location of an external file that contains tileset definition, or empty string
 	// for the case of an embedded tileset.
@@ -505,83 +512,52 @@ func (ts *Tileset) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	// // TODO
-	// type jsonTileset struct {
-	// 	Name             string           `json:"name"`
-	// 	ObjectAlignment  Align            `json:"objectalignment"`
-	// 	Properties       Properties       `json:"properties"`
-	// 	Spacing          int              `json:"spacing"`
-	// 	Terrains         []int            `json:"terrains"`
-	// 	TileCount        int              `json:"tilecount"`
-	// 	TiledVersion     string           `json:"tiledversion"`
-	// 	TileHeight       int              `json:"tileheight"`
-	// 	TileWidth        int              `json:"tilewidth"`
-	// 	TileRenderSize   TileRender       `json:"tilerendersize"`
-	// 	Tiles            []Tile           `json:"tiles"`
-	// 	Wangsets         []WangSet        `json:"wangsets"`
-	// 	Version          string           `json:"version"`
-	// 	TransparentColor Color            `json:"transparentcolor"`
-	// 	Transformations  *Transformations `json:"transformations"`
-	// 	Type             string           `json:"type"`
-	// 	TileOffset       Point            `json:"tileoffset"`
-	// }
-	//
-	// var temp jsonTileset
-	// if err := json.Unmarshal(data, &temp); err != nil {
-	// 	return err
-	// }
-	//
-	// ts.Name = temp.Name
-	// ts.Class = temp.Class
-	// ts.Version = temp.Version
-	// ts.TiledVersion = temp.TiledVersion
-	// ts.Columns = temp.Columns
-	// ts.FillMode = temp.FillMode
-	// ts.Grid = temp.Grid
-	// ts.Margin = temp.Margin
-	// ts.Spacing = temp.Spacing
-	// ts.Tiles = temp.Tiles
-	// ts.ObjectAlign = temp.ObjectAlignment
-	// ts.Count = temp.TileCount
-	// ts.Offset = temp.TileOffset
-	// ts.Properties = temp.Properties
-	// ts.RenderSize = temp.TileRenderSize
-	// ts.TileSize = Size{Width: temp.TileWidth, Height: temp.TileHeight}
-	// ts.WangSets = temp.Wangsets
-	// ts.Transforms = temp.Transformations
-	// ts.BackgroundColor = temp.BackgroundColor
-	// if temp.Source != "" {
-	// 	ts.Image = &Image{
-	// 		Source: temp.Source,
-	// 		Size: Size{
-	// 			Width:  temp.ImageWidth,
-	// 			Height: temp.ImageHeight,
-	// 		},
-	// 		Transparency: temp.TransparentColor,
-	// 	}
-	// }
-
-	// Terrains         []int            `json:"terrains"`
-
 	ts.postProcess()
 	return nil
 }
 
 func (ts *Tileset) postProcess() {
-	for i, tile := range ts.Tiles {
+	var cx, cy float32
+	if ts.Image != nil && ts.Image.Width > 0 && ts.Image.Height > 0 {
+		cx = float32(ts.TileSize.Width) / float32(ts.Image.Width)
+		cy = float32(ts.TileSize.Height) / float32(ts.Image.Height)
+	}
+
+	for i := range ts.Tiles {
+		tile := &ts.Tiles[i]
 
 		if tile.Width == 0 {
-			ts.Tiles[i].Width = ts.TileSize.Width
+			tile.Width = ts.TileSize.Width
 		}
 		if tile.Height == 0 {
-			ts.Tiles[i].Height = ts.TileSize.Height
+			tile.Height = ts.TileSize.Height
 		}
 
-		x := int(tile.ID) % ts.Columns
-		y := int(tile.ID) / ts.Columns
-		ts.Tiles[i].Point = Point{X: x, Y: y}
+		if tile.Image != nil {
+			// TODO
+			tile.UV0 = Vec2{0.0, 0.0}
+			tile.UV1 = Vec2{1.0, 1.0}
+		} else {
+			tile.Point = Point{
+				X: int(tile.ID) % ts.Columns,
+				Y: int(tile.ID) / ts.Columns,
+			}
+
+			tile.UV0.X = float32(tile.X) * cx
+			tile.UV1.X = min(float32(tile.X + 1) * cx, 1.0)
+
+			if BottomLeftOrigin {
+				tile.UV0.Y = 1.0 - max(float32(tile.Bottom()) * cy, 0.0)
+				tile.UV1.Y = 1.0 - min(float32(tile.Bottom() - 1) * cy, 1.0)
+			} else {
+				tile.UV0.Y = float32(tile.Y) * cy
+				tile.UV1.Y = min(float32(tile.Y + 1) * cy, 1.0)
+			}
+		}
 	}
 }
+
+
 
 // OpenTileset reads a tileset from a file, using the specified format.
 //

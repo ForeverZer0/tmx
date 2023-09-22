@@ -31,7 +31,7 @@ type Image struct {
 	Transparency Color
 	// Size describes the dimensions of the image in pixel units. This field is optional and not
 	// always provided.
-	Size Size
+	Size
 	// Data contains the payload of an embedded image. This is not supported by the Tiled editor,
 	// but is by the TMX specification.
 	Data *Data

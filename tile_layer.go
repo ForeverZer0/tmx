@@ -43,8 +43,7 @@ func (layer *TileLayer) GetGID(x, y int) TileID {
 // otherwise it must be within the bounds of the map. A nil value will be returned
 // for positions outside the map bounds or when no tile is defined at the given position.
 func (layer *TileLayer) TileAt(x, y int) (*Tile, TileID) {
-	gid := layer.GetGID(x, y)
-	if gid > 0 {
+	if gid := layer.GetGID(x, y); gid != 0 {
 		if ts, id := layer.parent.Tileset(gid); id > 0 {
 			return &ts.Tiles[id], gid
 		}
@@ -115,21 +114,17 @@ func (layer *TileLayer) UnmarshalXML(d *xml.Decoder, start xml.StartElement) err
 	if err := layer.postProcess(layer.Area()); err != nil {
 		return err
 	}
-	layer.calcChunks()
-	return nil
-}
 
-func (layer *TileLayer) calcChunks() {
-	if len(layer.Chunks) == 0 {
-		return
+	if len(layer.Chunks) > 0 {
+		last := layer.Chunks[len(layer.Chunks)-1]
+		layer.chunkSz = last.Size
+		layer.ChunkSize = Size{Width: last.Right(), Height: last.Bottom()}
+
+		layer.chunkCols = layer.ChunkSize.Width / layer.chunkSz.Width
+		layer.chunkRows = layer.ChunkSize.Height / layer.chunkSz.Height
 	}
 
-	last := layer.Chunks[len(layer.Chunks)-1]
-	layer.chunkSz = last.Size
-	layer.ChunkSize = Size{Width: last.Right(), Height: last.Bottom()}
-
-	layer.chunkCols = layer.ChunkSize.Width / layer.chunkSz.Width
-	layer.chunkRows = layer.ChunkSize.Height / layer.chunkSz.Height
+	return nil
 }
 
 // vim: ts=4

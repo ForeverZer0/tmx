@@ -13,21 +13,22 @@ import (
 // WangSet defines a list of colors and any number of Wang tiles using these colors.
 type WangSet struct {
 	// Name is the user-defined name of the Wang set.
-	Name string `xml:"name,attr"`
+	Name string
 	// Class is the user-defined class of the Wang set.
-	Class string `xml:"class,attr,omitempty"`
+	Class string
 	// Tile is the tile ID of the tile representing the Wang set.
-	Tile TileID `xml:"tile,attr"`
+	Tile TileID
 	// Type indicates the behavior of terrain generation.
-	Type WangType `xml:"type,attr"`
+	Type WangType
 	// Colors is a collection of up to 254 colors used by the Wang set.
-	Colors []WangColor `xml:"wangcolor"`
+	Colors []WangColor
 	// Tiles is a collection of tiles used by the Wang set.
-	Tiles []WangTile `xml:"wangtile"`
+	Tiles []WangTile
 	// Properties contain arbitrary key-value pairs of data to associate with the object.
-	Properties `xml:"properties"`
+	Properties
 }
 
+// UnmarshalXML implements the xml.Unmarshaler interface.
 func (w *WangSet) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	for _, attr := range start.Attr {
 		switch attr.Name.Local {
@@ -41,7 +42,7 @@ func (w *WangSet) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				return err
 			} else {
 				w.Tile = id
-			}		
+			}
 		case "type":
 			if value, err := parseWangType(attr.Value); err != nil {
 				return err
@@ -51,7 +52,7 @@ func (w *WangSet) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 		default:
 			logAttr(attr.Name.Local, start.Name.Local)
 		}
-	}	
+	}
 
 	token, err := d.Token()
 	for token != start.End() {
@@ -174,6 +175,7 @@ type WangColor struct {
 	Properties
 }
 
+// UnmarshalXML implements the xml.Unmarshaler interface.
 func (w *WangColor) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	for _, attr := range start.Attr {
 		switch attr.Name.Local {
@@ -279,10 +281,11 @@ func (w *WangColor) UnmarshalJSON(data []byte) error {
 			logProp(name, "wangcolor")
 		}
 	}
-	
+
 	return nil
 }
 
+// WangTile describes a tile within a WangSet.
 type WangTile struct {
 	// Tile is the local tile ID used by the Wang tile.
 	Tile TileID `json:"tileid"`
@@ -299,6 +302,7 @@ type WangTile struct {
 	DFlip bool `json:"dflip"`
 }
 
+// UnmarshalXML implements the xml.Unmarshaler interface.
 func (w *WangTile) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	for _, attr := range start.Attr {
 		switch attr.Name.Local {
@@ -322,21 +326,21 @@ func (w *WangTile) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				}
 			}
 		case "hflip":
-			log.Println("WangTile: hflip is deprecated, use Transformations")
+			log.Println("WangTile: hflip is deprecated, use tileset.Transformations")
 			if value, err := strconv.ParseBool(attr.Value); err != nil {
 				return err
 			} else {
 				w.HFlip = value
 			}
 		case "vflip":
-			log.Println("WangTile: vflip is deprecated, use Transformations")
+			log.Println("WangTile: vflip is deprecated, use tilset.Transformations")
 			if value, err := strconv.ParseBool(attr.Value); err != nil {
 				return err
 			} else {
 				w.VFlip = value
 			}
 		case "dlip":
-			log.Println("WangTile: dflip is deprecated, use Transformations")
+			log.Println("WangTile: dflip is deprecated, use tilset.Transformations")
 			if value, err := strconv.ParseBool(attr.Value); err != nil {
 				return err
 			} else {

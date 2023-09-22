@@ -26,7 +26,7 @@ type Object struct {
 	Size Vec2
 	// Rotation is the amount of rotation of the object in degrees clockwise around its Location.
 	Rotation float32
-	// GID is a reference to a global tile ID (optional).
+	// GID is a reference to a global tile ID (optional), or 0 when unset.
 	GID TileID
 	// Visible determines whenther the object is shown or not.
 	Visible bool
@@ -36,7 +36,7 @@ type Object struct {
 	Type ObjectType
 	// Text is the definition used for Text objects, otherwise nil.
 	Text *Text
-	// Points is a list of vectors used for Polygon and Polyline types.
+	// Points is a list of vectors used for Polygon and Polyline types, otherwise empty.
 	Points []Vec2
 	// flags is used internally to determine which values were explicitly set, and which are
 	// simply the "zero" or default value. This is necessary for determining how to inherit
@@ -46,7 +46,6 @@ type Object struct {
 	// cache is a reference to the parent map's Cache.
 	cache *Cache
 }
-
 
 // String implements the Stringer interface.
 func (obj *Object) String() string {
@@ -211,15 +210,11 @@ func (obj *Object) UnmarshalJSON(data []byte) error {
 		name := token.(string)
 		switch name {
 		case "properties":
-			// TODO !
-			var props []Property
+			props := make(Properties)
 			if err := d.Decode(&props); err != nil {
 				return err
 			}
-			obj.Properties = make(Properties)
-			for _, prop := range props {
-				obj.Properties[prop.Name] = prop
-			}
+			obj.Properties = props
 			continue
 		case "polyline":
 			if err := d.Decode(&obj.Points); err != nil {

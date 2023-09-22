@@ -449,11 +449,12 @@ func (m *Map) AddLayer(layer Layer) {
 //
 // Returns zero values when the given GID is invalid for this map.
 func (m *Map) Tileset(gid TileID) (*Tileset, TileID) {
-	clean := gid & ClearMask
-	for i := len(m.Tilesets) - 1; i >= 0; i-- {
-		ts := m.Tilesets[i]
-		if ts.FirstGID <= clean {
-			return ts.Tileset, clean - ts.FirstGID
+	if clean := gid & ClearMask; clean != 0 {
+		for i := len(m.Tilesets) - 1; i >= 0; i-- {
+			ts := m.Tilesets[i]
+			if ts.FirstGID <= clean {
+				return ts.Tileset, clean - ts.FirstGID
+			}
 		}
 	}
 	return nil, 0

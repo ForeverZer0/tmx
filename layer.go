@@ -234,6 +234,7 @@ func (layer *baseLayer) initDefaults(lt LayerType) {
 	layer.Visible = true
 }
 
+// jsonLayer decodes a JSON-formatted TMX layer, returning it as an interface.
 func jsonLayer(d *json.Decoder, cache *Cache) (Layer, error) {
 	var base baseLayer
 	base.cache = cache
@@ -246,7 +247,7 @@ func jsonLayer(d *json.Decoder, cache *Cache) (Layer, error) {
 	var image Image
 	var repeatX, repeatY bool
 	var order DrawOrder
-	var start Point // TODO: Start is not actually used, but is documented in spec
+	var start Point // TODO: Is "startx" and "starty" actually ever in output?
 
 	token, err := d.Token()
 	if err != nil {
@@ -281,10 +282,8 @@ func jsonLayer(d *json.Decoder, cache *Cache) (Layer, error) {
 		case "type":
 			if str, err := jsonProp[string](d); err != nil {
 				return nil, err
-			} else if value, err := parseLayerType(str); err != nil {
+			} else if base.layerType, err = parseLayerType(str); err != nil {
 				return nil, err
-			} else {
-				base.layerType = value
 			}
 		case "x":
 			if value, err := jsonProp[float64](d); err != nil {
@@ -355,10 +354,8 @@ func jsonLayer(d *json.Decoder, cache *Cache) (Layer, error) {
 		case "tintcolor":
 			if value, err := jsonProp[string](d); err != nil {
 				return nil, err
-			} else if color, err := ParseColor(value); err != nil {
+			} else if base.TintColor, err = ParseColor(value); err != nil {
 				return nil, err
-			} else {
-				base.TintColor = color
 			}
 		case "visible":
 			if value, err := jsonProp[bool](d); err != nil {
@@ -375,34 +372,26 @@ func jsonLayer(d *json.Decoder, cache *Cache) (Layer, error) {
 		case "compression":
 			if str, err := jsonProp[string](d); err != nil {
 				return nil, err
-			} else if value, err := parseCompression(str); err != nil {
+			} else if tileData.Compression, err = parseCompression(str); err != nil {
 				return nil, err
-			} else {
-				tileData.Compression = value
 			}
 		case "encoding":
 			if str, err := jsonProp[string](d); err != nil {
 				return nil, err
-			} else if value, err := parseEncoding(str); err != nil {
+			} else if tileData.Encoding, err = parseEncoding(str); err != nil {
 				return nil, err
-			} else {
-				tileData.Encoding = value
 			}
 		case "draworder":
 			if str, err := jsonProp[string](d); err != nil {
 				return nil, err
-			} else if value, err := parseDrawOrder(str); err != nil {
+			} else if order, err = parseDrawOrder(str); err != nil {
 				return nil, err
-			} else {
-				order = value
 			}
 		case "transparentcolor":
 			if value, err := jsonProp[string](d); err != nil {
 				return nil, err
-			} else if color, err := ParseColor(value); err != nil {
+			} else if image.Transparency, err = ParseColor(value); err != nil {
 				return nil, err
-			} else {
-				image.Transparency = color
 			}
 		case "image":
 			if image.Source, err = jsonProp[string](d); err != nil {
@@ -434,7 +423,7 @@ func jsonLayer(d *json.Decoder, cache *Cache) (Layer, error) {
 				}
 				objects = append(objects, obj)
 			}
-			// Position to next token ']'
+			// Consume the closing ']'
 			if token, err = d.Token(); err != nil {
 				return nil, err
 			}
@@ -451,7 +440,7 @@ func jsonLayer(d *json.Decoder, cache *Cache) (Layer, error) {
 					layers = append(layers, child)
 				}
 			}
-			// Position to next token ']'
+			// Consume the closing ']'
 			if token, err = d.Token(); err != nil {
 				return nil, err
 			}
@@ -468,7 +457,7 @@ func jsonLayer(d *json.Decoder, cache *Cache) (Layer, error) {
 				}
 				tileData.Chunks = append(tileData.Chunks, chunk)
 			}
-			// Position to next token ']'
+			// Consume the closing ']'
 			if token, err = d.Token(); err != nil {
 				return nil, err
 			}
@@ -485,7 +474,7 @@ func jsonLayer(d *json.Decoder, cache *Cache) (Layer, error) {
 						tileData.Tiles = append(tileData.Tiles, TileID(value))
 					}
 				}
-				// Position to next token ']'
+				// Consume the closing ']'
 				if token, err = d.Token(); err != nil {
 					return nil, err
 				}
@@ -497,14 +486,13 @@ func jsonLayer(d *json.Decoder, cache *Cache) (Layer, error) {
 			jsonSkip(d)
 		}
 	}
-	
+
 	switch base.layerType {
 	case LayerTile:
 		impl := TileLayer{baseLayer: base, TileData: tileData}
 		if err = impl.TileData.postProcess(base.Area()); err != nil {
 			return nil, err
 		}
-		impl.calcChunks()
 		return &impl, nil
 	case LayerImage:
 		impl := ImageLayer{baseLayer: base, Image: &image, RepeatX: repeatX, RepeatY: repeatY}

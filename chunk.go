@@ -60,6 +60,9 @@ func (c *Chunk) UnmarshalJSON(data []byte) error {
 				// Text data. Store for now, process later
 				c.tileData = trimPayload([]byte(token.(string)))
 			}
+		default:
+			logProp(name, "chunk")
+			jsonSkip(d)
 		}
 	}
 

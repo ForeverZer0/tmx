@@ -279,7 +279,7 @@ func (ts *MapTileset) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 		}
 		ts.Tileset = &impl
 	} else {
-		if impl, err := OpenTileset(source, DetectExt(source), ts.cache); err == nil {
+		if impl, err := ReadTileset(source, FormatUnknown, ts.cache); err == nil {
 			ts.Tileset = impl
 		} else {
 			return err
@@ -319,7 +319,7 @@ func (ts *MapTileset) UnmarshalJSON(data []byte) error {
 		}
 		ts.Tileset = &tileset
 	} else {
-		if tileset, err := OpenTileset(temp.Source, DetectExt(temp.Source), ts.cache); err != nil {
+		if tileset, err := ReadTileset(temp.Source, FormatUnknown, ts.cache); err != nil {
 			return err
 		} else {
 			ts.Tileset = tileset
@@ -544,26 +544,25 @@ func (ts *Tileset) postProcess() {
 			}
 
 			tile.UV0.X = float32(tile.X) * cx
-			tile.UV1.X = min(float32(tile.X + 1) * cx, 1.0)
+			tile.UV1.X = min(float32(tile.X+1)*cx, 1.0)
 
 			if BottomLeftOrigin {
-				tile.UV0.Y = 1.0 - max(float32(tile.Bottom()) * cy, 0.0)
-				tile.UV1.Y = 1.0 - min(float32(tile.Bottom() - 1) * cy, 1.0)
+				tile.UV0.Y = 1.0 - max(float32(tile.Bottom())*cy, 0.0)
+				tile.UV1.Y = 1.0 - min(float32(tile.Bottom()-1)*cy, 1.0)
 			} else {
 				tile.UV0.Y = float32(tile.Y) * cy
-				tile.UV1.Y = min(float32(tile.Y + 1) * cy, 1.0)
+				tile.UV1.Y = min(float32(tile.Y+1)*cy, 1.0)
 			}
 		}
 	}
 }
 
-
-
-// OpenTileset reads a tileset from a file, using the specified format.
+// ReadTileset reads a tilemap from a file, using the specified format. When the format is
+// FormatUnknown, it will attempt to be detected based on extension and file heuristics.
 //
 // An optional cache can be supplied that maintains references to tilesets and
 // templates to prevent frequent re-processing of them.
-func OpenTileset(path string, format Format, cache *Cache) (*Tileset, error) {
+func ReadTileset(path string, format Format, cache *Cache) (*Tileset, error) {
 	var abs string
 	var err error
 	if abs, err = FindPath(path); err != nil {
@@ -589,6 +588,10 @@ func OpenTileset(path string, format Format, cache *Cache) (*Tileset, error) {
 	var tileset Tileset
 	tileset.Source = abs
 	tileset.cache = cache
+
+	if format == FormatUnknown {
+		format = DetectExt(abs)
+	}
 
 	if err := Decode(reader, format, &tileset); err != nil {
 		return nil, err

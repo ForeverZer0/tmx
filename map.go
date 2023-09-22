@@ -460,12 +460,13 @@ func (m *Map) Tileset(gid TileID) (*Tileset, TileID) {
 	return nil, 0
 }
 
-// OpenMap reads a tilemap from a file, using the specified format.
+// ReadMap reads a tilemap from a file, using the specified format. When the format is
+// FormatUnknown, it will attempt to be detected based on extension and file heuristics.
 //
 // An optional cache can be supplied that maintains references to tilesets and
 // templates to prevent frequent re-processing of them. When nil, an internal
 // cache will be used that only exists for the lifetime of the map.
-func OpenMap(path string, format Format, cache *Cache) (*Map, error) {
+func ReadMap(path string, format Format, cache *Cache) (*Map, error) {
 	var abs string
 	var err error
 	if abs, err = FindPath(path); err != nil {
@@ -484,6 +485,10 @@ func OpenMap(path string, format Format, cache *Cache) (*Map, error) {
 	var tilemap Map
 	tilemap.Source = abs
 	tilemap.cache = cache
+
+	if format == FormatUnknown {
+		format = DetectExt(abs)
+	}
 
 	if err = Decode(reader, format, &tilemap); err != nil {
 		return nil, err

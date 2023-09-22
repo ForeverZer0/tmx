@@ -99,11 +99,12 @@ func (t *Template) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// OpenTileset reads a tileset from a file, using the specified format.
+// ReadTemplate reads a tilemap from a file, using the specified format. When the format is
+// FormatUnknown, it will attempt to be detected based on extension and file heuristics.
 //
 // An optional cache can be supplied that maintains references to tilesets and
 // templates to prevent frequent re-processing of them.
-func OpenTemplate(path string, format Format, cache *Cache) (*Template, error) {
+func ReadTemplate(path string, format Format, cache *Cache) (*Template, error) {
 	var abs string
 	var err error
 	if abs, err = FindPath(path); err != nil {
@@ -129,6 +130,10 @@ func OpenTemplate(path string, format Format, cache *Cache) (*Template, error) {
 	var template Template
 	template.Source = abs
 	template.cache = cache
+
+	if format == FormatUnknown {
+		format = DetectExt(abs)
+	}
 
 	if err := Decode(reader, format, &template); err != nil {
 		return nil, err

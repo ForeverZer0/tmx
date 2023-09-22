@@ -118,6 +118,8 @@ func (c *Collision) UnmarshalJSON(data []byte) error {
 			if token, err = d.Token(); err != nil {
 				return err
 			}
+		case "name", "opacity", "x", "y", "type", "visible":
+			jsonSkip(d)
 		default:
 			logProp(name, "objectgroup")
 			jsonSkip(d)

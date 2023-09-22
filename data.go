@@ -120,6 +120,7 @@ func (data *TileData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 	return nil
 }
 
+// decode processed the raw encoded/compressed bytes into tile IDs.
 func (data *TileData) decode(raw []byte, gids []TileID) error {
 	// Encoding: CSV
 	if data.Encoding == EncodingCSV {

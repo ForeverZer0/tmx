@@ -31,8 +31,8 @@ type Tile struct {
 	Collision *Collision
 	// Deprecated: Terrain has been replaced by WangSets
 	Terrain []int
-	// cache is a resource cache that maintains references to shared objects.
-	cache *Cache
+	// Tileset is a reference to the parent tilset.
+	Tileset *Tileset
 }
 
 // UnmarshalXML implements the xml.Unmarshaler interface.
@@ -112,7 +112,7 @@ func (t *Tile) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				t.Image = &image
 			case "objectgroup":
 				var collision Collision
-				collision.cache = t.cache
+				collision.cache = t.Tileset.cache
 				if err := collision.UnmarshalXML(d, child); err != nil {
 					return err
 				}

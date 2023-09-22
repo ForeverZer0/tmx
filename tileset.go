@@ -1,6 +1,7 @@
 package tmx
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -59,8 +60,6 @@ type Tileset struct {
 	Tiles []Tile
 	// WangSets is a collection of WangSet objects.
 	WangSets []WangSet
-	// Deprecated: Use WangSets
-	Terrains []int
 	// Properties contain arbitrary key-value pairs of data to associate with the object.
 	Properties
 	// Grid is used for isometric orientation, and determines how tile overlays for terrain and
@@ -190,7 +189,7 @@ func (ts *Tileset) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 			switch child.Name.Local {
 			case "tile":
 				var tile Tile
-				tile.cache = ts.cache
+				tile.Tileset = ts
 				if err := tile.UnmarshalXML(d, child); err != nil {
 					return err
 				}
@@ -217,8 +216,7 @@ func (ts *Tileset) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				}
 				ts.Grid = &grid
 			case "terraintypes":
-				// TODO: Parse
-				log.Println("terraintypes are no longer supported, use wangsets instead")
+				logTerrain()
 			case "wangsets":
 				type wangsets struct {
 					Values []WangSet `xml:"wangset"`
@@ -324,74 +322,244 @@ func (ts *MapTileset) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (ts *Tileset) UnmarshalJSON(data []byte) error {
-	// TODO
-	type jsonTileset struct {
-		FirstGID         TileID           `json:"firstgid"`
-		Source           string           `json:"source"`
-		BackgroundColor  Color            `json:"backgroundcolor"`
-		Class            string           `json:"class"`
-		Columns          int              `json:"columns"`
-		FillMode         FillMode         `json:"fill_mode"`
-		Grid             *Grid            `json:"grid"`
-		Image            string           `json:"image"`
-		ImageWidth       int              `json:"imagewidth"`
-		ImageHeight      int              `json:"imageheight"`
-		Margin           int              `json:"margin"`
-		Name             string           `json:"name"`
-		ObjectAlignment  Align            `json:"objectalignment"`
-		Properties       Properties       `json:"properties"`
-		Spacing          int              `json:"spacing"`
-		Terrains         []int            `json:"terrains"`
-		TileCount        int              `json:"tilecount"`
-		TiledVersion     string           `json:"tiledversion"`
-		TileHeight       int              `json:"tileheight"`
-		TileWidth        int              `json:"tilewidth"`
-		TileRenderSize   TileRender       `json:"tilerendersize"`
-		Tiles            []Tile           `json:"tiles"`
-		Wangsets         []WangSet        `json:"wangsets"`
-		Version          string           `json:"version"`
-		TransparentColor Color            `json:"transparentcolor"`
-		Transformations  *Transformations `json:"transformations"`
-		Type             string           `json:"type"`
-		TileOffset       Point            `json:"tileoffset"`
-	}
-
-	var temp jsonTileset
-	if err := json.Unmarshal(data, &temp); err != nil {
+	d := json.NewDecoder(bytes.NewReader(data))
+	token, err := d.Token()
+	if err != nil {
 		return err
+	} else if token != json.Delim('{') {
+		return ErrExpectedObject
 	}
 
-	ts.Name = temp.Name
-	ts.Class = temp.Class
-	ts.Version = temp.Version
-	ts.TiledVersion = temp.TiledVersion
-	ts.Columns = temp.Columns
-	ts.FillMode = temp.FillMode
-	ts.Grid = temp.Grid
-	ts.Margin = temp.Margin
-	ts.Spacing = temp.Spacing
-	ts.Tiles = temp.Tiles
-	ts.ObjectAlign = temp.ObjectAlignment
-	ts.Count = temp.TileCount
-	ts.Offset = temp.TileOffset
-	ts.Properties = temp.Properties
-	ts.RenderSize = temp.TileRenderSize
-	ts.TileSize = Size{Width: temp.TileWidth, Height: temp.TileHeight}
-	ts.WangSets = temp.Wangsets
-	ts.Transforms = temp.Transformations
-	ts.BackgroundColor = temp.BackgroundColor
+	for {
+		if token, err = d.Token(); err != nil {
+			return err
+		} else if token == json.Delim('}') {
+			break
+		}
 
-	if temp.Source != "" {
-		ts.Image = &Image{
-			Source: temp.Source,
-			Size: Size{
-				Width:  temp.ImageWidth,
-				Height: temp.ImageHeight,
-			},
-			Transparency: temp.TransparentColor,
+		name := token.(string)
+		switch name {
+		case "backgroundcolor":
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if ts.BackgroundColor, err = ParseColor(str); err != nil {
+				return err
+			}
+		case "class":
+			if ts.Class, err = jsonProp[string](d); err != nil {
+				return err
+			}
+		case "columns":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				ts.Columns = int(value)
+			}
+		case "fill_mode":
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if ts.FillMode, err = parseFillMode(str); err != nil {
+				return err
+			}
+		case "grid":
+			var grid Grid
+			if err = d.Decode(&grid); err != nil {
+				return err
+			}
+			ts.Grid = &grid
+		case "image":
+			if ts.Image == nil {
+				ts.Image = &Image{}
+			}
+			if ts.Image.Source, err = jsonProp[string](d); err != nil {
+				return err
+			}
+		case "imagewidth":
+			if ts.Image == nil {
+				ts.Image = &Image{}
+			}
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				ts.Image.Size.Width = int(value)
+			}
+		case "imageheight":
+			if ts.Image == nil {
+				ts.Image = &Image{}
+			}
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				ts.Image.Size.Height = int(value)
+			}
+		case "margin":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				ts.Margin = int(value)
+			}
+		case "name":
+			if ts.Name, err = jsonProp[string](d); err != nil {
+				return err
+			}
+		case "objectalignment":
+			if str, err := jsonProp[string](d); err != nil {
+				return err
+			} else if ts.ObjectAlign, err = parseAlign(str); err != nil {
+				return err
+			}
+		case "properties":
+			props := make(Properties)
+			if err = d.Decode(&props); err != nil {
+				return err
+			}
+			ts.Properties = props
+		case "spacing":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				ts.Spacing = int(value)
+			}
+		case "tilecount":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				ts.Count = int(value)
+			}
+		case "tiledversion":
+			if ts.TiledVersion, err = jsonProp[string](d); err != nil {
+				return err
+			}
+		case "tileheight":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				ts.TileSize.Height = int(value)
+			}
+		case "tilewidth":
+			if value, err := jsonProp[float64](d); err != nil {
+				return err
+			} else {
+				ts.TileSize.Width = int(value)
+			}
+		case "tilerendersize":
+			if value, err := jsonProp[string](d); err != nil {
+				return err
+			} else if ts.RenderSize, err = parseTileRender(value); err != nil {
+				return err
+			}
+		case "tiles":
+			if token, err = d.Token(); err != nil {
+				return err
+			} else if token != json.Delim('[') {
+				return ErrExpectedArray
+			}
+			for d.More() {
+				tile := Tile{Tileset: ts}
+				if err = d.Decode(&tile); err != nil {
+					return err
+				}
+				ts.Tiles = append(ts.Tiles, tile)
+			}
+			// Consume the closing ']'
+			if token, err = d.Token(); err != nil {
+				return err
+			}
+		case "wangsets":
+			if err = d.Decode(&ts.WangSets); err != nil {
+				return err
+			}
+		case "version":
+			if ts.Version, err = jsonProp[string](d); err != nil {
+				return err
+			}
+		case "transparentcolor":
+			if ts.Image == nil {
+				ts.Image = &Image{}
+			}
+			if value, err := jsonProp[string](d); err != nil {
+				return err
+			} else if ts.Image.Transparency, err = ParseColor(value); err != nil {
+				return err
+			}
+		case "transformations":
+			var transforms Transformations
+			if err = d.Decode(&transforms); err != nil {
+				return err
+			}
+			ts.Transforms = &transforms
+		case "tileoffset":
+			if err = d.Decode(&ts.Offset); err != nil {
+				return err
+			}
+		case "terrains":
+			logTerrain()
+			jsonSkip(d)
+		case "firstgid", "source", "type":
+			jsonSkip(d)
+		default:
+			logProp(name, "tileset")
+			jsonSkip(d)
 		}
 	}
+
+	// // TODO
+	// type jsonTileset struct {
+	// 	Name             string           `json:"name"`
+	// 	ObjectAlignment  Align            `json:"objectalignment"`
+	// 	Properties       Properties       `json:"properties"`
+	// 	Spacing          int              `json:"spacing"`
+	// 	Terrains         []int            `json:"terrains"`
+	// 	TileCount        int              `json:"tilecount"`
+	// 	TiledVersion     string           `json:"tiledversion"`
+	// 	TileHeight       int              `json:"tileheight"`
+	// 	TileWidth        int              `json:"tilewidth"`
+	// 	TileRenderSize   TileRender       `json:"tilerendersize"`
+	// 	Tiles            []Tile           `json:"tiles"`
+	// 	Wangsets         []WangSet        `json:"wangsets"`
+	// 	Version          string           `json:"version"`
+	// 	TransparentColor Color            `json:"transparentcolor"`
+	// 	Transformations  *Transformations `json:"transformations"`
+	// 	Type             string           `json:"type"`
+	// 	TileOffset       Point            `json:"tileoffset"`
+	// }
+	//
+	// var temp jsonTileset
+	// if err := json.Unmarshal(data, &temp); err != nil {
+	// 	return err
+	// }
+	//
+	// ts.Name = temp.Name
+	// ts.Class = temp.Class
+	// ts.Version = temp.Version
+	// ts.TiledVersion = temp.TiledVersion
+	// ts.Columns = temp.Columns
+	// ts.FillMode = temp.FillMode
+	// ts.Grid = temp.Grid
+	// ts.Margin = temp.Margin
+	// ts.Spacing = temp.Spacing
+	// ts.Tiles = temp.Tiles
+	// ts.ObjectAlign = temp.ObjectAlignment
+	// ts.Count = temp.TileCount
+	// ts.Offset = temp.TileOffset
+	// ts.Properties = temp.Properties
+	// ts.RenderSize = temp.TileRenderSize
+	// ts.TileSize = Size{Width: temp.TileWidth, Height: temp.TileHeight}
+	// ts.WangSets = temp.Wangsets
+	// ts.Transforms = temp.Transformations
+	// ts.BackgroundColor = temp.BackgroundColor
+	// if temp.Source != "" {
+	// 	ts.Image = &Image{
+	// 		Source: temp.Source,
+	// 		Size: Size{
+	// 			Width:  temp.ImageWidth,
+	// 			Height: temp.ImageHeight,
+	// 		},
+	// 		Transparency: temp.TransparentColor,
+	// 	}
+	// }
 
 	// Terrains         []int            `json:"terrains"`
 

@@ -12,6 +12,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -262,6 +263,10 @@ func inflate(src, dst []byte, comp Compression) error {
 // as well as  ensure it is correctly defined and of the required size.
 func (data *TileData) postProcess(tileCount int) error {
 	if len(data.Chunks) > 0 {
+
+		errors := make(chan error, len(data.Chunks))
+		defer close(errors)
+
 		for i := range data.Chunks {
 			chunk := &data.Chunks[i]
 			area := chunk.Width * chunk.Height
@@ -273,11 +278,22 @@ func (data *TileData) postProcess(tileCount int) error {
 			}
 
 			chunk.Tiles = make([]TileID, area)
-			if err := data.decode(chunk.tileData, chunk.Tiles); err != nil {
-				return err
-			}
-			chunk.tileData = nil
+
+			go func(c *Chunk) {
+				err := data.decode(chunk.tileData, chunk.Tiles)
+				chunk.tileData = nil
+				errors <- err
+			}(chunk)
 		}
+
+		var wg sync.WaitGroup
+		wg.Add(len(data.Chunks))
+		go func() {
+			for range errors {
+				wg.Done()
+			}
+		}()
+		wg.Wait()
 
 		return nil
 	}
